@@ -1,4 +1,58 @@
 {
   "schema_version": 1,
-  "decisions": []
+  "decisions": [
+    {
+      "id": "CD-0001",
+      "title": "Adopt a 2-root-cause / 4-vector ECB attack taxonomy, with detection as a first-class fifth section",
+      "status": "accepted",
+      "implementation_state": "implemented",
+      "scope": {
+        "files": [
+          "docs/ecb-mode-unsafe.md",
+          "src/ecb_lab/detection.py"
+        ],
+        "concepts": [
+          "ECB attack taxonomy",
+          "ECB threat vector structure",
+          "ECB detection",
+          "document structure"
+        ]
+      },
+      "originating_feedback": "User asked for a comprehensive, non-theoretical treatment of ECB mode weaknesses, and explicitly instructed: independently design a structure first, then compare it against the pre-existing reference project at ~/Documents/ecb-mode, determine which concept is better, and port the winning concept (not the file content) across.",
+      "decision": "Structured the document and codebase around ECB's two actual root causes (determinism; no integrity/chaining) collapsing into four vectors (pattern/structure leakage, equality/frequency inference, chosen-plaintext oracle recovery, block malleability/tampering) instead of the author's own initial 6-item vector list, which had genuine redundancy (block replay and dictionary/codebook attacks are restatements of the same two root causes, not independent vectors). Detection was kept as its own top-level section rather than folded into residual risk, because the reference project only implemented the black-box (ciphertext block-repeat) half of detection and had no white-box/library-default-footgun coverage at all.",
+      "rationale": "The reference project's 2-cause/4-vector taxonomy is more rigorous and avoids the redundancy the writing standard's narrative-drift and single-subject-focus rules warn against; it was independently verified by reading its source, running its full test suite (49/49 passing, including live notebook execution), and separately re-checking its cited real-world cases. One of its cited statistics (a CCS 2015 hospital-data figure) was found to conflate two different sub-results from the same paper and was corrected before use here, rather than being ported as-is. The detection gap (no white-box/library-default coverage, no CCS 2013 Android-misuse prevalence study, no named real-app instances of the Java Cipher.getInstance ECB-default footgun) was the author's own independent research contribution and was kept as a first-class section rather than merged into an existing one.",
+      "authoritative_sources": [
+        {
+          "title": "NIST SP 800-38A, Recommendation for Block Cipher Modes of Operation",
+          "url": "https://csrc.nist.gov/pubs/sp/800/38/a/final",
+          "supports": "formal ECB definition and the equal-plaintext-block/equal-ciphertext-block property"
+        },
+        {
+          "title": "Egele, Brumley, Fratantonio & Kruegel, An Empirical Study of Cryptographic Misuse in Android Applications, ACM CCS 2013",
+          "url": "https://dl.acm.org/doi/10.1145/2508859.2516693",
+          "supports": "prevalence of accidental ECB usage via library defaults, used to justify a first-class white-box detection section"
+        },
+        {
+          "title": "Naveed, Kamara & Wright, Inference Attacks on Property-Preserving Encrypted Databases, ACM CCS 2015",
+          "url": "https://dl.acm.org/doi/10.1145/2810103.2813651",
+          "supports": "corrected attribute-recovery statistics used in the real-world evidence table, after the reference project's stated figure was found to conflate two distinct sub-results"
+        }
+      ],
+      "verification_methods": [
+        "Ran the reference project's full pytest suite (49 passed) including dynamic notebook execution before relying on any of its code as evidence of a working technique.",
+        "Independently re-fetched and cross-checked each of the reference project's cited real-world sources (Zoom/CVE-2020-11500, Microsoft O365 OME/WithSecure, Naveed-Kamara-Wright CCS 2015) against primary or first-party pages rather than trusting the citation as given.",
+        "Ran this project's own pytest suite (19 passed) and executed notebooks/ecb_mode_deep_dive.ipynb end-to-end via nbclient, capturing real output for every vector before writing the corresponding documentation claims."
+      ],
+      "approved_outcome": "docs/ecb-mode-unsafe.md uses the 2-root-cause/4-vector taxonomy with a standalone 'Detecting ECB mode usage' section covering both black-box and white-box detection; src/ecb_lab/ implements one module per vector plus detection.py as a first-class module, not a helper buried in the oracle-attack code.",
+      "invalidation_conditions": [
+        "A future vector is identified that is not a consequence of determinism or the lack of integrity/chaining, which would require a third root cause.",
+        "The detection section is found to be redundant with residual-risk content after further review, warranting a merge."
+      ],
+      "related_decisions": [],
+      "supersedes": [],
+      "superseded_by": null,
+      "originated_on": "2026-08-18",
+      "last_reviewed_on": "2026-08-18"
+    }
+  ]
 }
