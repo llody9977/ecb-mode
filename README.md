@@ -2,16 +2,17 @@
 
 ## Purpose
 
-This project documents the cryptographic weaknesses of ECB (Electronic Codebook) mode — the simplest block cipher mode of operation, and the one most often misused. The goal is a precise technical reference that explains:
+This project answers one question with runnable proof, not theory: **why is AES-ECB mode unsafe, and how would you know if a system is using it?** The primary reference is [`docs/ecb-mode-unsafe.md`](docs/ecb-mode-unsafe.md), covering:
 
-- what ECB mode actually does mechanically (independent, unchained block encryption under a fixed key);
-- why that construction fails to provide semantic security — identical plaintext blocks always produce identical ciphertext blocks under the same key, which leaks the structural pattern of the plaintext regardless of key strength;
-- how that weakness is exploited in practice (pattern leakage, block reordering, block replay, cut-and-paste manipulation);
-- what mitigates or replaces it (authenticated modes such as AES-GCM, or CBC/CTR with a random IV and a separate MAC), and the residual risk that remains after switching.
+- what ECB mode does mechanically, and the formal proof that it breaks semantic security (IND-CPA), independent of key strength;
+- a comprehensive attack surface reduced to its two actual root causes — determinism, and no integrity/chaining — and the four vectors that follow from them (pattern leakage, equality/frequency inference, chosen-plaintext byte-at-a-time recovery, block malleability/cut-and-paste);
+- real-world evidence for each vector, independently verified against primary sources (Adobe 2013, Zoom CVE-2020-11500, Microsoft Office 365 Message Encryption, the CCS 2013 Android crypto-misuse study, CCS 2015 hospital-record inference attacks);
+- how to detect ECB usage, both black-box (ciphertext/oracle analysis) and white-box (the library-default footguns that cause most accidental ECB use in practice);
+- the defensive control (authenticated encryption) and the residual risk that remains after adopting it.
+
+Every attack and every detection technique is implemented in [`src/ecb_lab/`](src/ecb_lab/), covered by tests in [`tests/`](tests/), and run end-to-end with real captured output in [`notebooks/ecb_mode_deep_dive.ipynb`](notebooks/ecb_mode_deep_dive.ipynb) — nothing in the documentation is asserted without code behind it.
 
 Content is organized as a security-flaw deep dive on a single primary subject, not a general cryptography survey — ECB mode's boundary with other block cipher modes (CBC, CTR, GCM) is covered only to the extent needed to explain what ECB gets wrong and what a correct alternative looks like.
-
-**Assumption (unconfirmed):** this README is written for a general technical reader (an engineer or reviewer evaluating block-cipher-mode choices), not exclusively for the author's own future recall. The direct technical voice required by this project's writing standard works either way, but if the intended audience or publication venue is different, say so and the framing can be adjusted.
 
 ## Standards
 
@@ -24,6 +25,17 @@ See [`AGENTS.md`](AGENTS.md) for the enforcement pointer.
 
 ## Structure
 
-- `docs/` — content pages (created as content is written).
+- `docs/ecb-mode-unsafe.md` — the primary written reference.
+- `src/ecb_lab/` — the tested implementation: `crypto_helpers.py` (AES-ECB/CBC/GCM), `detection.py` (black-box and white-box ECB detection), `pattern_leakage.py`, `oracle_attack.py`, `cut_and_paste.py` — one module per attack vector.
+- `tests/` — pytest coverage for every module above; run with `pytest` (block size, key, and cipher IO are exercised against real AES, not mocked).
+- `notebooks/ecb_mode_deep_dive.ipynb` — runs every vector end-to-end with real, captured output; the companion notebook to `docs/ecb-mode-unsafe.md`.
 - `reviews/` — review records, the durable content-decision register (`CONTENT_DECISIONS.yml`), and the review template. Bootstrapped from the `doc-review` skill's assets.
 - `scripts/` — review tooling (`capture_review_state.py`, `verify_content_decisions.py`), copied from the `doc-review` skill's assets. Both are generic and depend only on `git` and this repository's `reviews/CONTENT_DECISIONS.yml`.
+
+## Running it
+
+```bash
+pip install -r requirements.txt
+pytest                                    # 19 tests, all four vectors + detection + crypto helpers
+jupyter nbconvert --execute --to notebook --inplace notebooks/ecb_mode_deep_dive.ipynb
+```
