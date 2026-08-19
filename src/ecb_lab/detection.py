@@ -18,10 +18,12 @@ from .crypto_helpers import BLOCK_SIZE, split_blocks
 def has_repeated_blocks(ciphertext: bytes, block_size: int = BLOCK_SIZE) -> bool:
     """True if any two blocks in this single ciphertext are identical.
 
-    This is a sufficient but not necessary condition for ECB: it only fires when the
-    plaintext itself happened to contain two identical blocks (e.g. padding, repeated
-    headers, uniform image regions). ECB ciphertext without any repeated plaintext block
-    looks like any other block cipher's output under this test alone.
+    This is sufficient evidence of deterministic, block-independent encryption -- of
+    which ECB is the overwhelmingly likely real-world cause, though not the only
+    logically possible one -- but it is not a necessary condition: it only fires when
+    the plaintext itself happened to contain two identical blocks (e.g. padding,
+    repeated headers, uniform image regions). ECB ciphertext without any repeated
+    plaintext block looks like any other block cipher's output under this test alone.
     """
     blocks = split_blocks(ciphertext, block_size)
     return len(blocks) != len(set(blocks))
@@ -77,5 +79,5 @@ STATIC_GREP_PATTERNS: tuple[str, ...] = (
     r"modes\.ECB\(",  # pyca/cryptography
     r"/ECB/",  # Java-style transformation strings, e.g. AES/ECB/PKCS5Padding
     r'Cipher\.getInstance\(\s*"AES"\s*\)',  # Java default-mode footgun (resolves to ECB)
-    r"AES\.new\(\s*\w+\s*,\s*AES\.MODE_ECB",  # PyCryptodome explicit ECB construction
+    r"AES\.new\(\s*[\w.\[\]'\"]+\s*,\s*AES\.MODE_ECB",  # PyCryptodome explicit ECB construction
 )

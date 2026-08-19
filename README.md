@@ -10,7 +10,7 @@ This project answers one question with runnable proof, not theory: **why is AES-
 - how to detect ECB usage, both black-box (ciphertext/oracle analysis) and white-box (the library-default footguns that cause most accidental ECB use in practice);
 - the defensive control (authenticated encryption) and the residual risk that remains after adopting it.
 
-Every attack and every detection technique is implemented in [`src/ecb_lab/`](src/ecb_lab/), covered by tests in [`tests/`](tests/), and run end-to-end with real captured output in [`notebooks/ecb_mode_deep_dive.ipynb`](notebooks/ecb_mode_deep_dive.ipynb) — nothing in the documentation is asserted without code behind it.
+The primary technique for each vector is implemented in [`src/ecb_lab/`](src/ecb_lab/), covered by tests in [`tests/`](tests/), and run end-to-end with real captured output in [`notebooks/ecb_mode_deep_dive.ipynb`](notebooks/ecb_mode_deep_dive.ipynb). Related sub-techniques named in the documentation (codebook harvesting, cross-dataset correlation, frequency/rank matching, block reordering, standalone replay) are direct consequences of the same two root causes and are described but not separately demonstrated in code.
 
 Content is organized as a security-flaw deep dive on a single primary subject, not a general cryptography survey — ECB mode's boundary with other block cipher modes (CBC, CTR, GCM) is covered only to the extent needed to explain what ECB gets wrong and what a correct alternative looks like.
 
@@ -36,6 +36,6 @@ See [`AGENTS.md`](AGENTS.md) for the enforcement pointer.
 
 ```bash
 pip install -r requirements.txt
-pytest                                    # 19 tests, all four vectors + detection + crypto helpers
+pytest                                    # 22 tests, all four vectors + detection + crypto helpers
 jupyter nbconvert --execute --to notebook --inplace notebooks/ecb_mode_deep_dive.ipynb
 ```
