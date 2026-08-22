@@ -1,7 +1,18 @@
-# Server-side secret scan — the portable equivalent of push protection; works on
-# private repos with no GitHub Advanced Security. Runs the gitleaks binary directly
-# over full history, which avoids gitleaks-action's initial-push diff-range bug (the
-# root commit has no parent) and needs no license key. Make it a required check.
+# Server-side secret scan — the third layer, behind the local pre-commit hook and
+# GitHub's own secret scanning. It is not redundant with push protection:
+#
+#   - GitHub matches *provider* patterns (registered formats: cloud keys, PATs,
+#     payment keys) and blocks them at push. It is better than gitleaks at those.
+#     Generic secrets — private keys, high-entropy strings, .env-style assignments,
+#     any format nobody registered — are a separate setting, and gitleaks covers
+#     that category with its own rules regardless of how it is configured.
+#   - Push protection is bypassable: a pusher can override it with a stated reason.
+#     This runs as a required status check on main, which a merge cannot skip.
+#   - It scans full history on every push and PR, not just the pushed delta.
+#
+# Runs the gitleaks binary directly rather than gitleaks-action: that avoids the
+# action's initial-push diff-range bug (the root commit has no parent) and needs no
+# license key. Keep it named in the branch protection required checks.
 name: Secret scan
 
 on:
