@@ -1,7 +1,10 @@
 import os
 
 from ecb_lab.detection import has_repeated_blocks
-from ecb_lab.pattern_leakage import encrypt_image_under_each_mode, generate_sample_bitmap
+from ecb_lab.pattern_leakage import (
+    encrypt_image_under_each_mode,
+    generate_sample_bitmap,
+)
 
 
 def test_ecb_leaks_repeated_blocks_cbc_and_gcm_do_not():

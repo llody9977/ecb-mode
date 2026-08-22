@@ -53,4 +53,4 @@ Found a vulnerability? Report it privately — see [`SECURITY.md`](SECURITY.md).
 
 ## License
 
-Code (`src/`, `tests/`, `scripts/`) is licensed under **Apache-2.0** — see [`LICENSE`](LICENSE). Documentation and the notebook (`docs/`, `notebooks/`, `README.md`) are licensed under **CC-BY-4.0** — see [`LICENSE-docs`](LICENSE-docs).
+Licensed under **Apache-2.0** — see [`LICENSE`](LICENSE). Covers everything in the repository: code, documentation, and the notebook.

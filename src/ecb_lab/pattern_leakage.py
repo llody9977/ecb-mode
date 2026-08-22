@@ -7,8 +7,6 @@ outline of the source image survives into the ciphertext.
 
 from __future__ import annotations
 
-import os
-
 from PIL import Image, ImageDraw
 
 from .crypto_helpers import aes_cbc_encrypt, aes_ecb_encrypt, aes_gcm_encrypt
