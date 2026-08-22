@@ -283,5 +283,8 @@ def d1():
                subtitle="the same identical pair, three modes — only ECB hands back an identical pair")
 
 for name, fn in [("modes-ecb-cbc-gcm", d1), ("taxonomy", d2), ("vector3-byte-at-a-time", d3), ("vector4-cut-and-paste", d4)]:
-    (OUT / f"{name}.svg").write_text(fn())
+    # Trailing newline so the committed file agrees with the end-of-file-fixer
+    # pre-commit hook; without it the hook and this generator overwrite each
+    # other and the byte-identical regeneration check never holds.
+    (OUT / f"{name}.svg").write_text(fn() + "\n")
     print("wrote", name + ".svg")
