@@ -210,69 +210,43 @@ def d4():
                   size=10.5, fill=MUTED))
     return svg(W, 472, "Vector 4 — block cut-and-paste privilege escalation", "".join(b))
 
-# ---------------- Diagram 1: three modes ----------------
+# ---------------- Diagram 1: three modes (concrete block comparison) ----------------
 def d1():
     b = []
+    b.append(text(W / 2, 80, "Take two identical 16-byte plaintext blocks and encrypt them under one key", size=13, fill=MUTED))
+    pw, ph, py = 80, 46, 92
+    px1, px2 = W / 2 - pw - 24, W / 2 + 24
+    b.append(box(px1, py, pw, ph, "P₁", fill="#3b82f6", stroke="#1d4ed8", tc="#fff", size=15, weight="700"))
+    b.append(box(px2, py, pw, ph, "P₂", fill="#3b82f6", stroke="#1d4ed8", tc="#fff", size=15, weight="700"))
+    b.append(text(W / 2, py + ph / 2 + 7, "=", size=24, fill="#1d4ed8", weight="800"))
+    b.append(text(W / 2, py + ph + 16, "identical input", size=11, fill=MUTED, weight="600"))
+    b.append(text(W / 2, 170, "↓   encrypted three ways   ↓", size=12, fill=MUTED, weight="600"))
 
-    def lane(y0, title, draw):
-        return "".join([panel(24, y0, W - 48, 150),
-                        text(40, y0 + 24, title, size=13, fill=INK, weight="700", anchor="start"),
-                        draw(y0)])
-
-    def EK(x, y, w=58, h=32):
-        return box(x, y, w, h, "Eₖ", fill="#e0e7ff", stroke="#6366f1", tc="#3730a3", size=14, weight="700", rx=7)
-
-    def xor(cx, cy, r=15):
-        return (f'<circle class="xor" cx="{cx}" cy="{cy}" r="{r}" stroke-width="1.8"/>'
-                + text(cx, cy + 5, "⊕", size=16, fill=MUTED, weight="700"))
-
-    def ecb(y0):
-        o = []
-        ry1, ry2, h = y0 + 58, y0 + 106, 32
-        o.append(box(48, ry1 - 16, 74, h, "P1")); o.append(arrow(122, ry1, 168, ry1))
-        o.append(EK(168, ry1 - 16)); o.append(arrow(226, ry1, 272, ry1))
-        o.append(box(272, ry1 - 16, 74, h, "C1"))
-        o.append(box(48, ry2 - 16, 74, h, "P2 = P1", size=11)); o.append(arrow(122, ry2, 168, ry2))
-        o.append(EK(168, ry2 - 16)); o.append(arrow(226, ry2, 272, ry2))
-        o.append(box(272, ry2 - 16, 210, h, "C2 = C1  — structure leaks", fill=RED, stroke="#991b1b", tc="#fff", size=12))
-        o.append(f'<path d="M 500 {ry1} C 528 {ry1}, 528 {ry2}, 500 {ry2}" fill="none" stroke="{RED}" stroke-width="1.6"/>')
-        o.append(text(548, (ry1 + ry2) / 2 + 4, "identical", size=11, fill=RED, weight="700"))
-        o.append(text(548, (ry1 + ry2) / 2 + 20, "in → identical out", size=10.5, fill=MUTED))
+    def moderow(y0, name, caption, c1, c2, same, tagcolor, tagtext):
+        o = [panel(24, y0, W - 48, 96)]
+        o.append(f'<rect x="44" y="{y0 + 18}" width="120" height="30" rx="15" fill="{NAVY}"/>')
+        o.append(text(44 + 60, y0 + 38, name, size=13, fill="#fff", weight="700"))
+        o.append(text(44, y0 + 66, caption, size=11.5, fill=MUTED, anchor="start", lh=14))
+        ow, oh = 82, 46
+        ox2 = W - 48 - ow - 10
+        ox1 = ox2 - ow - 46
+        o.append(box(ox1, y0 + 22, ow, oh, "C₁", fill=c1, stroke="#0000001f", tc="#fff", size=14, weight="700"))
+        o.append(box(ox2, y0 + 22, ow, oh, "C₂", fill=c2, stroke="#0000001f", tc="#fff", size=14, weight="700"))
+        o.append(text((ox1 + ow + ox2) / 2, y0 + 22 + oh / 2 + 8, "=" if same else "≠", size=24, fill=tagcolor, weight="800"))
+        o.append(text((ox1 + ox2 + ow) / 2, y0 + 86, tagtext, size=11, fill=tagcolor, weight="700"))
         return "".join(o)
 
-    def cbc(y0):
-        o = []; cy = y0 + 92
-        o.append(box(44, cy - 52, 84, 26, "random IV", size=10.5))
-        o.append(box(44, cy - 10, 74, 26, "P1", size=11))
-        o.append(arrow(128, cy - 39, 169, cy - 10)); o.append(arrow(118, cy + 3, 169, cy - 4))
-        o.append(xor(184, cy - 4)); o.append(arrow(199, cy - 4, 236, cy - 4))
-        o.append(EK(236, cy - 20)); o.append(arrow(294, cy - 4, 330, cy - 4))
-        o.append(box(330, cy - 20, 74, 32, "C1"))
-        o.append(box(470, cy - 52, 84, 26, "P2 = P1", size=10.5))
-        o.append(xor(560, cy - 4)); o.append(arrow(544, cy - 39, 560, cy - 19))
-        o.append(path(f"M 404 {cy - 4} C 430 {cy - 4}, 430 {cy + 34}, 545 {cy + 34} L 545 {cy + 8} L 552 {cy + 8}", color=BLUE))
-        o.append(alabel(470, cy + 46, "previous ciphertext", fill=BLUE))
-        o.append(arrow(575, cy - 4, 612, cy - 4)); o.append(EK(612, cy - 20)); o.append(arrow(670, cy - 4, 706, cy - 4))
-        o.append(box(706, cy - 20, 150, 32, "C2 ≠ C1  — no leak", fill=GREEN, stroke="#15803d", tc="#fff", size=12))
-        return "".join(o)
-
-    def gcm(y0):
-        o = []; cy = y0 + 92
-        o.append(box(44, cy - 16, 120, 32, "nonce + counter", size=11))
-        o.append(arrow(164, cy, 200, cy)); o.append(EK(200, cy - 16)); o.append(arrow(258, cy, 300, cy))
-        o.append(text(279, cy - 6, "keystream", size=9.5, fill=MUTED))
-        o.append(box(300, cy - 58, 74, 26, "P1", size=11))
-        o.append(xor(330, cy)); o.append(arrow(330, cy - 32, 330, cy - 16))
-        o.append(arrow(345, cy, 470, cy))
-        o.append(box(470, cy - 18, 150, 36, "C1  +  auth tag", fill=GREEN, stroke="#15803d", tc="#fff", size=12))
-        o.append(text(680, cy - 4, "nonce per message →", size=10.5, fill=MUTED, anchor="start"))
-        o.append(text(680, cy + 12, "no repeats; tag detects tampering", size=10.5, fill=MUTED, anchor="start"))
-        return "".join(o)
-    b.append(lane(62, "AES-ECB  —  the plaintext block is the only input", ecb))
-    b.append(lane(224, "AES-CBC  —  each block is XORed with the previous ciphertext (random IV)", cbc))
-    b.append(lane(386, "AES-GCM  —  encrypt a per-message nonce+counter, XOR into the plaintext, then authenticate", gcm))
-    return svg(W, 552, "Why only ECB leaks structure", "".join(b),
-               subtitle="same plaintext blocks under the same key — only ECB maps them to the same ciphertext")
+    b.append(moderow(184, "AES-ECB",
+        "Feeds each plaintext block straight into AES —\nsame block in, same block out.",
+        "#dc2626", "#dc2626", True, RED, "C₁ = C₂  →  the pattern leaks"))
+    b.append(moderow(292, "AES-CBC",
+        "XORs each block with the previous ciphertext\nfirst, so the cipher never sees the same input twice.",
+        "#0ea5e9", "#f59e0b", False, GREEN, "C₁ ≠ C₂  →  no leak"))
+    b.append(moderow(400, "AES-GCM",
+        "XORs the plaintext with a fresh per-message\nkeystream before it is ever a ciphertext block.",
+        "#8b5cf6", "#10b981", False, GREEN, "C₁ ≠ C₂  →  no leak"))
+    return svg(W, 512, "Why only ECB leaks structure", "".join(b),
+               subtitle="the same identical pair, three modes — only ECB hands back an identical pair")
 
 for name, fn in [("modes-ecb-cbc-gcm", d1), ("taxonomy", d2), ("vector3-byte-at-a-time", d3), ("vector4-cut-and-paste", d4)]:
     (OUT / f"{name}.svg").write_text(fn())
