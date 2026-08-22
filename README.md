@@ -5,7 +5,7 @@
 ![Secret scan](https://github.com/llody9977/ecb-mode/actions/workflows/gitleaks.yml/badge.svg)
 ![License](https://img.shields.io/github/license/llody9977/ecb-mode)
 
-Electronic Codebook (ECB) encrypts every block independently under the same key, with no randomization and no dependency between blocks. That determinism alone breaks confidentiality outright: ECB fails the standard IND-CPA definition with adversary advantage 1, regardless of key size. A second property — no integrity, no chaining — leaves its ciphertext malleable, which is what enables tampering.
+Electronic Codebook (ECB) encrypts every block independently under the same key, with no randomization and no dependency between blocks. That determinism alone breaks confidentiality outright: ECB fails the standard IND-CPA definition with adversary advantage 1, regardless of key size. A second property — no authentication — means nothing detects a ciphertext that has been altered or reassembled, which is what turns the same determinism into forgery.
 
 **[▶ Open the interactive site →](https://llody9977.github.io/ecb-mode/)** — every attack below runs live in your browser against real AES.
 
@@ -19,7 +19,7 @@ The site turns each weakness into a demonstration you can drive. The crypto is *
 - **Cut-and-paste** — forge a `role=admin` token from a `role=user` service using only its public interface.
 - **The fix** — the same token under AES-GCM: flip one bit and watch the authentication tag reject it.
 
-![ECB's two root causes and four attack vectors](docs/diagrams/taxonomy.svg)
+![AES-ECB has two root causes — determinism (one key maps a plaintext block to the same ciphertext block at any position, in any message) and no authentication (tampering is not detected). Determinism alone drives Vector 1 pattern leakage, Vector 2 equality inference and Vector 3 byte-at-a-time recovery; Vector 4 cut-and-paste needs determinism and the missing authentication together. There is no third root cause.](docs/diagrams/taxonomy.svg)
 
 ## Structure
 

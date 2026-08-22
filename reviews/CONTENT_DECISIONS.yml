@@ -4,7 +4,7 @@
     {
       "id": "CD-0001",
       "title": "Adopt a 2-root-cause / 4-vector ECB attack taxonomy, with detection as a first-class fifth section",
-      "status": "accepted",
+      "status": "superseded",
       "implementation_state": "implemented",
       "scope": {
         "files": [
@@ -50,17 +50,18 @@
         "The detection section is found to be redundant with residual-risk content after further review, warranting a merge."
       ],
       "related_decisions": [
-        "CD-0002"
+        "CD-0002",
+        "CD-0006"
       ],
       "supersedes": [],
-      "superseded_by": null,
+      "superseded_by": "CD-0006",
       "originated_on": "2026-08-18",
       "last_reviewed_on": "2026-08-22"
     },
     {
       "id": "CD-0002",
       "title": "Correct the SP 800-38A scope-note claim and refine the CCS 2015 mortality-risk statistic against primary sources",
-      "status": "accepted",
+      "status": "superseded",
       "implementation_state": "implemented",
       "scope": {
         "files": [
@@ -104,10 +105,11 @@
         "A future reviewer locates paper text or an erratum showing the CCS 2015 99%/100% figures differ from what Section 9.1 currently states."
       ],
       "related_decisions": [
-        "CD-0001"
+        "CD-0001",
+        "CD-0005"
       ],
       "supersedes": [],
-      "superseded_by": null,
+      "superseded_by": "CD-0005",
       "originated_on": "2026-08-21",
       "last_reviewed_on": "2026-08-22"
     },
@@ -149,9 +151,8 @@
       "verification_methods": [
         "Read oracle_attack.py and cut_and_paste.py and derived the exact block byte layouts by hand; diagram labels match (byte-0 filler 15, byte-1 filler 14; base email_len 11 aligns role= to a block boundary; donor admin block is split_blocks(donor_token)[1]).",
         "Rendered all four diagrams in a real Mermaid engine (mermaid.min.js) via the in-app browser: 4 pre.mermaid blocks produced 4 SVGs, 0 error/syntax nodes; diagrams 1-2 confirmed visually with correct color coding, diagrams 3-4 confirmed by extracting rendered node labels and edge labels from the SVG DOM.",
-        "Regenerated the PNG by executing the notebook headlessly (python3 -m nbconvert --execute --inplace); confirmed the figure now shows the same-key/AES-128 suptitle and that no stray PNG was written to the repo root.",
-        "Ran pytest (22/22 passed) after the notebook re-execution to confirm the src implementations the diagrams depict are unchanged and green.",
-        "Diagram-to-code provenance rests on the in-repo generators, not external URLs: src/ecb_lab/oracle_attack.py (Vector 3) and src/ecb_lab/cut_and_paste.py (Vector 4) are the durable provenance for the block mechanics; notebooks/ecb_mode_deep_dive.ipynb cell 3 is the generator for the PNG."
+        "Regenerated the PNG by executing the notebook headlessly (python3 -m nbconvert --execute --inplace); confirmed the figure now shows the same-key/AES-128 suptitle and that no stray PNG was written to the repo root. Provenance for the PNG is notebooks/ecb_mode_deep_dive.ipynb cell 3; for the V3/V4 block mechanics it is src/ecb_lab/oracle_attack.py and src/ecb_lab/cut_and_paste.py -- in-repo generators, not external URLs.",
+        "Ran pytest (22/22 passed) after the notebook re-execution to confirm the src implementations the diagrams depict are unchanged and green."
       ],
       "approved_outcome": "docs/ecb-mode-unsafe.md carries four live Mermaid diagrams whose relationships (determinism -> V1-3, no-integrity -> V4; the ECB-only leakage path; the V3 alignment loop; the V4 splice) are the deliberate, code-accurate structure. The pattern-leakage PNG states its own comparison axis internally. Figure alt text in both README.md and docs states the conclusion, not just the panel names.",
       "invalidation_conditions": [
@@ -225,6 +226,430 @@
       "supersedes": [
         "CD-0003"
       ],
+      "superseded_by": null,
+      "originated_on": "2026-08-22",
+      "last_reviewed_on": "2026-08-22"
+    },
+    {
+      "id": "CD-0005",
+      "title": "Restore the SP 800-38A single-block scope note and re-anchor the CCS 2015 citation after the GitHub Pages pivot",
+      "status": "accepted",
+      "implementation_state": "implemented",
+      "scope": {
+        "files": [
+          "docs/index.html"
+        ],
+        "concepts": [
+          "SP 800-38A scope note",
+          "ECB single-block boundary",
+          "key wrapping",
+          "CCS 2015 inference attack citation",
+          "orphaned reference",
+          "Primary references hygiene"
+        ]
+      },
+      "originating_feedback": "Fresh review of commit 64b9ad6 found that both of CD-0002's approved outcomes were absent from the post-pivot source (greps for 'key wrap', 'never repeated', 'mortality' and 'hospital' returned nothing) while CD-0002 still recorded status accepted / implementation_state implemented with last_reviewed_on 2026-08-22. The CCS 2015 citation survived in Primary references with no claim on the page resting on it.",
+      "decision": "Restore the boundary note as a paragraph immediately after the IND-CPA argument in docs/index.html, and replace the deleted CCS 2015 evidence-table row with an inline Vector 2 paragraph so the Primary references entry supports live content. The note states that the IND-CPA break needs at least two blocks that can repeat, that a single never-repeated full block therefore falls outside this particular break, that the boundary is inference from ECB's own determinism property and NOT a NIST carve-out, and that the modes NIST actually approves for wrapping a key are KW/KWP/TKW in SP 800-38F rather than raw ECB.",
+      "rationale": "Dropping the note left the unqualified 'ECB is unsafe' claim standing against the one case its own IND-CPA argument does not reach -- the 'it's only one block, so it's fine' misconception the note existed to head off. SP 800-38F closes that loop without inventing an ECB exception. A Primary references entry supporting no on-page claim breaks the writing standard's rule that the section lists the sources establishing the page's conclusions; re-anchoring beat deleting because the CCS 2015 result is the strongest evidence that equality leakage generalises past passwords.",
+      "authoritative_sources": [
+        {
+          "title": "NIST SP 800-38A, Recommendation for Block Cipher Modes of Operation",
+          "url": "https://csrc.nist.gov/pubs/sp/800/38/a/final",
+          "supports": "Section 6.1 states only that 'under a given key, any given plaintext block always gets encrypted to the same ciphertext block' and that 'if this property is undesirable in a particular application, the ECB mode should not be used' -- it states no single-block exception"
+        },
+        {
+          "title": "NIST SP 800-38F, Methods for Key Wrapping",
+          "url": "https://csrc.nist.gov/pubs/sp/800/38/f/final",
+          "supports": "KW, KWP and TKW are the approved key-wrapping modes, final since December 2012 -- the answer to 'can I just ECB one block' is a dedicated mode, not ECB"
+        },
+        {
+          "title": "Naveed, Kamara & Wright, Inference Attacks on Property-Preserving Encrypted Databases, ACM CCS 2015",
+          "url": "https://dl.acm.org/doi/10.1145/2810103.2813651",
+          "supports": "frequency analysis against deterministically encrypted columns recovers plaintext attributes using publicly available auxiliary data, evaluated on the HCUP National Inpatient Sample"
+        }
+      ],
+      "verification_methods": [
+        "Extracted the SP 800-38A PDF text via the macOS Spotlight importer and quoted section 6.1 verbatim rather than relying on a secondary summary.",
+        "Confirmed the CCS 2015 attack applies to deterministic encryption (DTE) inside encrypted-database systems, not to ECB specifically, and worded the page to say so.",
+        "Re-ran the repo-wide greps after the edit to confirm the restored note and the re-anchored citation are both present."
+      ],
+      "approved_outcome": "docs/index.html carries a muted paragraph after 'Why determinism breaks confidentiality' stating where the IND-CPA argument stops, explicitly disclaiming a NIST carve-out and linking SP 800-38F; Vector 2 carries an inline paragraph citing CCS 2015 for frequency-analysis recovery against deterministically encrypted columns, with the scope difference from ECB stated in the same sentence.",
+      "invalidation_conditions": [
+        "NIST publishes an explicit single-block or key-wrapping exception for ECB, which would turn the inference into a citable carve-out.",
+        "A revision of SP 800-38F changes or withdraws the approved key-wrapping modes.",
+        "The page drops Vector 2, which would orphan the CCS 2015 citation again."
+      ],
+      "related_decisions": [
+        "CD-0002",
+        "CD-0006"
+      ],
+      "supersedes": [
+        "CD-0002"
+      ],
+      "superseded_by": null,
+      "originated_on": "2026-08-22",
+      "last_reviewed_on": "2026-08-22"
+    },
+    {
+      "id": "CD-0006",
+      "title": "Refine the two-root-cause boundary: determinism carries position-independence, root cause 2 is authentication only, and Vector 4 depends on both",
+      "status": "accepted",
+      "implementation_state": "implemented",
+      "scope": {
+        "files": [
+          "docs/index.html",
+          "README.md",
+          "docs/diagrams/generate_diagrams.py",
+          "docs/diagrams/taxonomy.svg"
+        ],
+        "concepts": [
+          "ECB attack taxonomy",
+          "ECB threat vector structure",
+          "root cause boundary",
+          "document structure",
+          "diagram-prose consistency"
+        ]
+      },
+      "originating_feedback": "Fresh review of commit 64b9ad6 found five statements of the same taxonomy claim disagreeing: taxonomy.svg's subtitle said 'one or both root causes' while its own arrows drew exactly one cause per vector; docs/index.html prose and the figure alt text said strictly one; the closing callout said 'one or both'. The review also found that 'no chaining' was doing work inside both root causes, so the two were not the disjoint partition the figure implied.",
+      "decision": "Keep the 2-root-cause / 4-vector taxonomy from CD-0001 and move the block-independence property entirely into root cause 1. Root cause 1 is now 'Determinism -- same plaintext block gives the same ciphertext block, at any position, in any message'. Root cause 2 narrows from 'No integrity / no chaining' to 'No authentication -- nothing detects a ciphertext that was altered or reassembled'. The taxonomy gains a dashed arrow from root cause 1 to Vector 4, labelled 'Vector 4 needs determinism too', so the drawn relationships match the 'one or both' subtitle. Prose, alt text and the closing callout all adopt the same formulation.",
+      "rationale": "Cut-and-paste needs both properties and the old split hid that: the spliced block decrypts to role=admin at its new position only because ECB's codebook map is position-independent (root cause 1), and it survives only because nothing authenticates the result (root cause 2). Putting 'no chaining' in root cause 2 while root cause 1 already asserted position-independent determinism made the two causes overlap, and left the figure asserting a stricter claim in its arrows than in its own subtitle. This refines the boundary inside CD-0001's taxonomy rather than meeting its invalidation condition -- no third root cause was identified and the four vectors are unchanged.",
+      "authoritative_sources": [
+        {
+          "title": "NIST SP 800-38A, Recommendation for Block Cipher Modes of Operation",
+          "url": "https://csrc.nist.gov/pubs/sp/800/38/a/final",
+          "supports": "section 6.1's statement of ECB determinism, which is position-independent as written and so already implies block independence"
+        }
+      ],
+      "verification_methods": [
+        "Decrypted the forged token produced by forgeAdminToken() block by block and confirmed the donor's ciphertext block 1 decrypts to 'admin' plus 11 bytes of 0x0b at position 2 of the forged token -- direct evidence that position-independence, not the absence of an integrity check alone, is what makes the splice decrypt.",
+        "Regenerated taxonomy.svg from the committed generator and inspected the rendered SVG in a browser to confirm the dashed root-cause-1-to-Vector-4 arrow reads clearly and does not collide with root cause 2's box.",
+        "Re-grepped docs/index.html and README.md to confirm every restatement of the claim now uses the same formulation."
+      ],
+      "approved_outcome": "docs/index.html (post-pivot successor to docs/ecb-mode-unsafe.md) states the refined root causes in its lede, the 'Two root causes, four vectors' paragraph, the taxonomy figure alt text and the closing callout; docs/diagrams/generate_diagrams.py d2() renders root cause 2 as 'No authentication' and draws the dashed determinism dependency into Vector 4; README.md's lede and taxonomy alt text match. The standalone 'Detecting ECB' section and the four-vector structure from CD-0001 are retained unchanged; src/ecb_lab/ named in CD-0001's outcome no longer exists, its role having moved to docs/js/attacks.mjs and docs/js/crypto.mjs.",
+      "invalidation_conditions": [
+        "A vector is identified that follows from neither determinism nor the absence of authentication, which would require a third root cause.",
+        "A demonstration shows Vector 4 succeeding against a mode that is deterministic but chained, which would break the claim that position-independence is what carries the splice."
+      ],
+      "related_decisions": [
+        "CD-0001",
+        "CD-0005"
+      ],
+      "supersedes": [
+        "CD-0001"
+      ],
+      "superseded_by": null,
+      "originated_on": "2026-08-22",
+      "last_reviewed_on": "2026-08-22"
+    },
+    {
+      "id": "CD-0007",
+      "title": "State GCM's IV requirement as uniqueness, not randomness, and carry the 2^32 invocation limit that applies to the RBG-based construction",
+      "status": "accepted",
+      "implementation_state": "implemented",
+      "scope": {
+        "files": [
+          "docs/index.html"
+        ],
+        "concepts": [
+          "GCM nonce",
+          "IV uniqueness",
+          "residual risk",
+          "SP 800-38D",
+          "nonce reuse",
+          "AEAD guidance"
+        ]
+      },
+      "originating_feedback": "Fresh review of commit 64b9ad6 found the residual-risk section asserting 'A fresh random 96-bit nonce per message is necessary', which contradicts SP 800-38D, and omitting the invocation ceiling NIST attaches to exactly the construction the page was recommending.",
+      "decision": "Rewrite the residual-risk section to state the requirement as SP 800-38D states it -- a probability bound on ever reusing an (IV, key) pair -- then present both approved constructions (deterministic, section 8.2.1; RBG-based, section 8.2.2) and the section 8.3 cap of 2^32 invocations per key that applies to everything except 96-bit deterministic IVs. Apply the same correction to the CBC/CTR fallback sentence, where CTR needs a counter block that is never reused rather than a 'fresh random IV'.",
+      "rationale": "Randomness is one of two approved paths to uniqueness, and it is the one that carries a hard operational ceiling; calling it 'necessary' both overstates the standard and steers readers away from the only construction NIST leaves uncapped. A page whose section heading is 'Residual risk after switching to GCM' has to carry the residual risk that NIST actually quantifies.",
+      "authoritative_sources": [
+        {
+          "title": "NIST SP 800-38D, Recommendation for Block Cipher Modes of Operation: GCM and GMAC",
+          "url": "https://csrc.nist.gov/pubs/sp/800/38/d/final",
+          "supports": "Section 8 states the requirement as 'The probability that the authenticated encryption function ever will be invoked with the same IV and the same key on two (or more) distinct sets of input data shall be no greater than 2-32'; section 8.2 gives the deterministic and RBG-based constructions; section 8.3 caps total invocations at 2^32 per key unless only 96-bit deterministic IVs are used"
+        },
+        {
+          "title": "Bock, Zauner, Devlin, Somorovsky & Jovanovic, Nonce-Disrespecting Adversaries, USENIX WOOT 2016",
+          "url": "https://eprint.iacr.org/2016/475",
+          "supports": "'With an Internet-wide scan we identified 184 HTTPS servers repeating nonces, which fully breaks the authenticity of the connections' -- the failure is authenticity of the affected connections, not a general confidentiality break"
+        }
+      ],
+      "verification_methods": [
+        "Extracted the SP 800-38D PDF text via the macOS Spotlight importer and read sections 8, 8.2, 8.2.1, 8.2.2 and 8.3 directly rather than relying on secondary summaries.",
+        "Extracted the Bock et al. PDF and confirmed the 184-server figure and the authenticity scope verbatim from the abstract and section 5."
+      ],
+      "approved_outcome": "docs/index.html's 'Residual risk after switching to GCM' section quotes the section 8 uniqueness bound, lists the deterministic and RBG-based constructions as a two-item list noting that 96-bit deterministic IVs are the only uncapped choice, and states the 2^32 section 8.3 ceiling as an operational limit that rekey scheduling must account for. SP 800-38D is listed in Primary references with the relevant section numbers. The CBC/CTR fallback sentence says 'a counter block that is never reused under the same key' for CTR.",
+      "invalidation_conditions": [
+        "A revision of SP 800-38D changes the uniqueness bound, the approved constructions, or the 2^32 invocation limit.",
+        "The page stops recommending GCM as the primary fix, which would move where this guidance belongs."
+      ],
+      "related_decisions": [],
+      "supersedes": [],
+      "superseded_by": null,
+      "originated_on": "2026-08-22",
+      "last_reviewed_on": "2026-08-22"
+    },
+    {
+      "id": "CD-0008",
+      "title": "Pair Vector 2 with the password-storage control rather than letting the AEAD fix stand as the answer for stored passwords",
+      "status": "accepted",
+      "implementation_state": "implemented",
+      "scope": {
+        "files": [
+          "docs/index.html"
+        ],
+        "concepts": [
+          "password storage",
+          "Vector 2 mitigation",
+          "weakness-mitigation pairing",
+          "SP 800-63B",
+          "scope boundary"
+        ]
+      },
+      "originating_feedback": "Fresh review of commit 64b9ad6 found that the page's scope callout promises 'Every weakness is paired with its mitigation', that Vector 2's exemplar is Adobe's password store, and that the page flags 'encrypted (not hashed)' twice -- the only two occurrences of 'hash' on the page -- without ever stating the correct control. A reader following the page's own structure lands on 'The fix -- authenticated encryption'.",
+      "decision": "Add a paragraph directly after the Vector 2 demo stating that the fix for this vector is not a cipher mode: AES-GCM would have stopped the clustering and still been the wrong design, because an encrypted password is recoverable by anyone holding the key. Cite NIST SP 800-63B-4 section 3.1.1.2 for the salted-hashing requirement, name memory-hard schemes as established practice rather than as NIST-named algorithms, and say explicitly that the AEAD fix below covers the other three vectors.",
+      "rationale": "Leaving the gap open let the page's structure imply a wrong answer for the one vector whose real-world exemplar is password storage. Keeping the note short and adjacent to Vector 2 preserves the page's ECB scope without turning it into a credential-storage guide. The distinction between what SP 800-63B requires (salted hashing with a suitable scheme) and what practice recommends (Argon2id, scrypt, bcrypt) is stated explicitly so the author's recommendation is not read as a NIST requirement.",
+      "authoritative_sources": [
+        {
+          "title": "NIST SP 800-63B-4, Digital Identity Guidelines: Authentication and Authenticator Management",
+          "url": "https://pages.nist.gov/800-63-4/sp800-63b.html",
+          "supports": "section 3.1.1.2 requires that passwords 'SHALL be salted and hashed using a suitable password hashing scheme', with a salt of at least 32 bits; it does not name Argon2id, scrypt or bcrypt in that section"
+        },
+        {
+          "title": "filippo.io, Analyzing the Adobe leaked passwords",
+          "url": "https://filippo.io/analyzing-the-adobe-leaked-passwords/",
+          "supports": "the Adobe store was encrypted with an 8-byte block cipher in ECB mode and unsalted -- 'It is a block cipher: this is a complete misuse. Hashing, password strengthening and encryption are different things.'"
+        }
+      ],
+      "verification_methods": [
+        "Read SP 800-63B-4 at its NIST-hosted HTML source, confirmed the revision (Revision 4, published 2025-08-26) and the section number before quoting the SHALL sentence.",
+        "Grepped the page for hash/salt/KDF terms before editing: the only two matches were the 'encrypted (not hashed)' asides themselves, confirming the gap was real rather than covered elsewhere."
+      ],
+      "approved_outcome": "docs/index.html carries a paragraph immediately after the Vector 2 equality-inference demo, opening 'The fix for this one is not a better cipher mode', quoting the SP 800-63B-4 section 3.1.1.2 SHALL requirement with its 32-bit salt minimum, naming Argon2id/scrypt/bcrypt as established practice explicitly distinguished from NIST's wording, and stating that the AEAD fix addresses the other three vectors. The closing callout repeats the boundary in one clause.",
+      "invalidation_conditions": [
+        "A later revision of SP 800-63B changes the password-storage requirement or its section numbering.",
+        "The page drops the Adobe exemplar from Vector 2, which would remove the reason for the note."
+      ],
+      "related_decisions": [],
+      "supersedes": [],
+      "superseded_by": null,
+      "originated_on": "2026-08-22",
+      "last_reviewed_on": "2026-08-22"
+    },
+    {
+      "id": "CD-0009",
+      "title": "State attack cost as an explicit bound with its symbol defined, and reconcile it with the number the live demo prints",
+      "status": "accepted",
+      "implementation_state": "implemented",
+      "scope": {
+        "files": [
+          "docs/index.html",
+          "docs/diagrams/generate_diagrams.py",
+          "docs/diagrams/vector3-byte-at-a-time.svg"
+        ],
+        "concepts": [
+          "attack cost",
+          "query complexity",
+          "numerical claims",
+          "illustrative values",
+          "figure self-sufficiency"
+        ]
+      },
+      "originating_feedback": "Fresh review of commit 64b9ad6 found 'roughly 256 x L queries' stated in three places -- prose, figure alt text and the figure's own summary box -- with L never defined anywhere, and with the figure presenting a worst-case bound as a typical cost. Measured runs contradicted it directly.",
+      "decision": "State the cost as an explicit bound: at most 256 x L queries for an L-byte secret, about 128 x L on average because the candidate search stops at the match, and lower still for printable ASCII. Bind L to 'an L-byte secret' at every occurrence including inside the SVG, and quote the measured figure for the page's own default secret so prose and demo agree.",
+      "rationale": "The page tells the reader to run the demo and the demo prints its query count, so an unreconciled worst-case figure is contradicted on screen. Five runs against the 48-byte default secret averaged 4,588 queries against a stated 256 x L of 12,288 -- a factor of 2.7. An undefined symbol inside a figure also fails the detached-artifact test, since the figure's headline number becomes unreadable once it leaves the page.",
+      "authoritative_sources": [],
+      "verification_methods": [
+        "Instrumented recoverSecret() with a counting oracle wrapper and ran the page's default 48-byte secret five times under Node: mean 4,588 queries, against 256 x L = 12,288 and 128 x L = 6,144.",
+        "After the edit, re-ran the in-browser demo (on-screen verdict: 4,588 oracle queries, matching the figure quoted in the prose) and regenerated vector3-byte-at-a-time.svg to confirm the summary box defines L inline."
+      ],
+      "approved_outcome": "docs/index.html's Vector 3 paragraph states the at-most, average and ASCII cases with L bound to 'a secret of L bytes' and quotes roughly 4,600 queries against a 12,288 worst case for the default; the figure alt text states both the 256 x L bound and the 128 x L average with L defined; the SVG summary box reads 'at most 256 x L oracle queries for an L-byte secret -- about 128 x L on average'.",
+      "invalidation_conditions": [
+        "recoverSecret()'s candidate search changes order or short-circuits differently, which would move the measured average.",
+        "The page's default secret changes, which would invalidate the quoted 4,600 / 12,288 pair."
+      ],
+      "related_decisions": [],
+      "supersedes": [],
+      "superseded_by": null,
+      "originated_on": "2026-08-22",
+      "last_reviewed_on": "2026-08-22"
+    },
+    {
+      "id": "CD-0010",
+      "title": "Attribute the ECB default in Cipher.getInstance(\"AES\") to the JCA provider, not to the JCA itself",
+      "status": "accepted",
+      "implementation_state": "implemented",
+      "scope": {
+        "files": [
+          "docs/index.html"
+        ],
+        "concepts": [
+          "white-box detection",
+          "Java Cryptography Architecture",
+          "provider defaults",
+          "standards attribution",
+          "library default footgun"
+        ]
+      },
+      "originating_feedback": "Fresh review of commit 64b9ad6 found the white-box detection bullet stating that 'the Java Cryptography Architecture silently resolves' an unqualified transformation to AES/ECB/PKCS5Padding, presented as the page's highest-yield single check.",
+      "decision": "Attribute the default to the provider. Quote Oracle's JCA reference guide on SunJCE and SunPKCS11 defaulting to ECB and PKCS5Padding, note that the BouncyCastle provider behind the Android findings in the evidence table did the same, and state that the JCA itself defines no default -- which is the actual reason the call is easy to miss in review.",
+      "rationale": "The JCA specifies that an unqualified transformation takes a provider-specific default; it does not mandate ECB. Getting this wrong in the one bullet the page calls its highest-yield check would send a reader looking for a guarantee that does not exist, and it sits two rows above a study whose ECB defaults came from a different provider entirely. The corrected wording is also the stronger teaching point: the danger is that the answer depends on the provider.",
+      "authoritative_sources": [
+        {
+          "title": "Oracle, Java Cryptography Architecture (JCA) Reference Guide",
+          "url": "https://docs.oracle.com/en/java/javase/21/security/java-cryptography-architecture-jca-reference-guide.html",
+          "supports": "'By not doing so, the provider will use a default. For example, the SunJCE and SunPKCS11 providers use ECB as the default mode, and PKCS5Padding as the default padding for many symmetric ciphers.'"
+        },
+        {
+          "title": "Egele, Brumley, Fratantonio & Kruegel, An Empirical Study of Cryptographic Misuse in Android Applications, ACM CCS 2013",
+          "url": "https://dl.acm.org/doi/10.1145/2508859.2516693",
+          "supports": "of 11,748 apps using crypto APIs, 7,656 violated the do-not-use-ECB rule, 5,656 of them because the developer named only a block cipher and the BouncyCastle provider configured ECB"
+        }
+      ],
+      "verification_methods": [
+        "Read Oracle's JCA reference guide for JDK 21 and quoted the provider-default sentence rather than paraphrasing it.",
+        "Confirmed that the Egele et al. default-ECB result is attributed to the BouncyCastle provider on Android, a different provider from the SunJCE example, and worded the bullet so both are named."
+      ],
+      "approved_outcome": "docs/index.html's white-box detection bullet quotes the JCA reference guide on SunJCE and SunPKCS11 defaults, names BouncyCastle as the provider behind the Android findings, states that the JCA defines no default, and links the guide inline.",
+      "invalidation_conditions": [
+        "A JDK release changes the SunJCE default mode or the JCA begins specifying a default.",
+        "The Android findings row is removed from the evidence table, which would drop the BouncyCastle half of the bullet."
+      ],
+      "related_decisions": [],
+      "supersedes": [],
+      "superseded_by": null,
+      "originated_on": "2026-08-22",
+      "last_reviewed_on": "2026-08-22"
+    },
+    {
+      "id": "CD-0011",
+      "title": "Bound rendered verification to one Chromium engine in both color schemes; do not claim or pursue cross-browser coverage",
+      "status": "rejected",
+      "implementation_state": "not_applicable",
+      "scope": {
+        "files": [
+          "docs/index.html",
+          "docs/styles.css",
+          "docs/diagrams/taxonomy.svg"
+        ],
+        "concepts": [
+          "rendered validation",
+          "browser coverage",
+          "theme-aware figures",
+          "review method scope"
+        ]
+      },
+      "originating_feedback": "The 2026-08-22 review verified the page and all four SVGs in the in-app Chromium at desktop width, in both light and dark schemes, and disclosed Safari, Firefox, mobile widths and GitHub's Markdown renderer as unverified. A later reviewer will read that disclosure as a coverage gap and re-raise it.",
+      "decision": "Do not treat absent Safari/Firefox/mobile/GitHub-renderer verification as a finding. Rendered validation is deliberately bounded to one Chromium engine exercised in both color schemes, which is what the page's actual platform dependencies require.",
+      "rationale": "The page depends on Web Crypto (subtle.encrypt/decrypt/importKey/getRandomValues), Canvas 2D with ImageData, ES modules, and a prefers-color-scheme media query inside <img>-embedded SVG. All are long-baseline features across current engines; none is behind a vendor prefix or an engine-specific code path, and no browser-sniffing or fallback branch exists in docs/js/. Testing both color schemes exercises the only conditional rendering the site actually has. Adding engines multiplies review cost without testing a distinct code path. This bounds the review method; it is not a claim that the site is untested or that other engines fail.",
+      "authoritative_sources": [],
+      "verification_methods": [
+        "Grepped docs/js/ and docs/styles.css for engine-specific branches, vendor prefixes and user-agent tests before accepting the bound: none present; the only conditional is the prefers-color-scheme override, which was exercised in both states.",
+        "Loaded the page and all four SVGs in light and dark schemes and confirmed identical layout and legibility in each."
+      ],
+      "approved_outcome": "Reviews verify rendering in one Chromium engine in both color schemes and record that bound as a stated limitation. Absence of other engines is not reported as a required finding.",
+      "invalidation_conditions": [
+        "docs/js/ or docs/styles.css gains an engine-specific branch, vendor prefix, browser sniff, or a feature without broad baseline support.",
+        "The site starts being consumed somewhere other than a browser at the GitHub Pages URL -- for example if README.md re-embeds figures that GitHub's own Markdown renderer must handle.",
+        "A reader reports a rendering defect on an engine outside the bound."
+      ],
+      "related_decisions": [
+        "CD-0004"
+      ],
+      "supersedes": [],
+      "superseded_by": null,
+      "originated_on": "2026-08-22",
+      "last_reviewed_on": "2026-08-22"
+    },
+    {
+      "id": "CD-0012",
+      "title": "Accept secondary verification for the two ACM-paywalled papers; do not re-raise their figures as unverified",
+      "status": "rejected",
+      "implementation_state": "not_applicable",
+      "scope": {
+        "files": [
+          "docs/index.html"
+        ],
+        "concepts": [
+          "source verification",
+          "paywalled primary sources",
+          "Egele CCS 2013",
+          "Naveed CCS 2015",
+          "citation discipline"
+        ]
+      },
+      "originating_feedback": "dl.acm.org returns HTTP 403 to automated fetches for both cited DOIs, so the Egele et al. figures (11,748 / 7,656 / 5,656) and the Naveed et al. result were confirmed against reporting of those papers rather than the PDFs. Disclosed as a limitation in the 2026-08-22 review; a later reviewer will re-raise it as an unverified-source finding.",
+      "decision": "Treat the ACM citations as adequately verified. Do not re-report them as unverified, and do not substitute an unpaywalled mirror of unconfirmed provenance for the DOI.",
+      "rationale": "The DOIs are correct and resolve for a human reader; only automated fetching is blocked, which is an access limitation of the review method rather than a defect in the citation. Both papers' figures were cross-checked against multiple independent accounts that agree exactly, including the 5,656/2,000 sub-split, and the page states each claim at the strength those accounts support. Swapping the DOI for a mirror would trade a canonical, stable identifier for a copy whose fidelity cannot be established -- a worse citation, not a better one.",
+      "authoritative_sources": [
+        {
+          "title": "Egele, Brumley, Fratantonio & Kruegel, An Empirical Study of Cryptographic Misuse in Android Applications, ACM CCS 2013",
+          "url": "https://dl.acm.org/doi/10.1145/2508859.2516693",
+          "supports": "the 11,748 / 7,656 / 5,656 figures and the BouncyCastle default attribution; DOI is canonical and resolves for a human reader"
+        },
+        {
+          "title": "Naveed, Kamara & Wright, Inference Attacks on Property-Preserving Encrypted Databases, ACM CCS 2015",
+          "url": "https://dl.acm.org/doi/10.1145/2810103.2813651",
+          "supports": "frequency-analysis recovery against deterministically encrypted columns, evaluated on the HCUP National Inpatient Sample"
+        }
+      ],
+      "verification_methods": [
+        "Confirmed both DOIs return 403 only to automated fetches, not that they are dead, by checking the redirect chain rather than the status code alone.",
+        "Cross-checked each figure against multiple independent accounts of the same paper and confirmed exact agreement before accepting the citation at its stated strength."
+      ],
+      "approved_outcome": "docs/index.html cites both papers by DOI. Reviews record the paywall as a stated verification limitation and do not report the figures as unsupported.",
+      "invalidation_conditions": [
+        "An open-access copy of either paper becomes available from the authors or their institution, making direct verification possible.",
+        "A figure quoted from either paper is challenged or is found to disagree with another account.",
+        "The page changes what it claims either paper establishes."
+      ],
+      "related_decisions": [
+        "CD-0005",
+        "CD-0010"
+      ],
+      "supersedes": [],
+      "superseded_by": null,
+      "originated_on": "2026-08-22",
+      "last_reviewed_on": "2026-08-22"
+    },
+    {
+      "id": "CD-0013",
+      "title": "State GCM's 2^32 invocation ceiling without modelling whether a deployment reaches it",
+      "status": "rejected",
+      "implementation_state": "not_applicable",
+      "scope": {
+        "files": [
+          "docs/index.html"
+        ],
+        "concepts": [
+          "GCM residual risk",
+          "operational limits",
+          "page scope boundary",
+          "optional extension"
+        ]
+      },
+      "originating_feedback": "The residual-risk section states SP 800-38D section 8.3's 2^32 per-key invocation cap for the RBG-based construction but gives no guidance on the message rates or key lifetimes at which a deployment would approach it. A later reviewer may raise the absent capacity guidance as a coverage gap.",
+      "decision": "State the ceiling and what it applies to; do not add throughput modelling, rekey-interval arithmetic, or worked capacity examples. Classify any such proposal as an optional extension, never a required gap.",
+      "rationale": "The page's subject is why ECB fails and what to use instead. The ceiling belongs because a reader choosing the random-nonce construction must know it is bounded; the arithmetic of a particular deployment does not, because it depends on message rate, key lifetime and rotation policy that the page has no basis to assume. Inventing illustrative rates would produce exactly the unsourced numerical example the writing standard prohibits. The page already says the limit is something a rekey schedule must account for, which points the reader at the decision without pretending to make it for them.",
+      "authoritative_sources": [
+        {
+          "title": "NIST SP 800-38D, Recommendation for Block Cipher Modes of Operation: GCM and GMAC",
+          "url": "https://csrc.nist.gov/pubs/sp/800/38/d/final",
+          "supports": "section 8.3 caps total invocations at 2^32 per key unless only 96-bit deterministic IVs are used -- the limit is stated as a global requirement, with no per-deployment guidance NIST supplies either"
+        }
+      ],
+      "verification_methods": [
+        "Read SP 800-38D section 8.3 directly and confirmed NIST itself states the cap as a global requirement without deployment-rate guidance, so the page is not omitting something its cited source provides."
+      ],
+      "approved_outcome": "docs/index.html's residual-risk section names the 2^32 ceiling, says which construction it binds, and notes a rekey schedule must account for it. No throughput or capacity figures appear.",
+      "invalidation_conditions": [
+        "The page broadens into deployment or key-management guidance, which would make capacity arithmetic in scope.",
+        "NIST publishes deployment-rate guidance for the ceiling that the page could cite rather than invent."
+      ],
+      "related_decisions": [
+        "CD-0007"
+      ],
+      "supersedes": [],
       "superseded_by": null,
       "originated_on": "2026-08-22",
       "last_reviewed_on": "2026-08-22"
