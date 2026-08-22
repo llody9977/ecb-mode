@@ -10,28 +10,7 @@ NIST formally defines ECB in [SP 800-38A](https://csrc.nist.gov/pubs/sp/800/38/a
 
 The difference from a safe mode is entirely in what feeds each block encryption. ECB feeds it the plaintext block alone, so two equal plaintext blocks take the same path to the same ciphertext. CBC first XORs each plaintext block with the previous ciphertext block (and the first with a random IV); GCM never encrypts the plaintext directly at all — it encrypts a per-message nonce-plus-counter and XORs the result into the plaintext, then authenticates. Both break the equal-in/equal-out path that ECB leaves open.
 
-```mermaid
-flowchart TB
-    subgraph ECB["AES-ECB — plaintext block is the only input"]
-        direction LR
-        eP1["P1"] --> eE1["E_K"] --> eC1["C1"]
-        eP2["P2 = P1"] --> eE2["E_K"] --> eC2["C2 = C1 — equality leaks"]:::leak
-    end
-    subgraph CBC["AES-CBC — each block XORed with the previous ciphertext (IV random)"]
-        direction LR
-        cIV["random IV"] --> cX1(("XOR"))
-        cP1["P1"] --> cX1 --> cE1["E_K"] --> cC1["C1"]
-        cC1 --> cX2(("XOR"))
-        cP2["P2 = P1"] --> cX2 --> cE2["E_K"] --> cC2["C2 not equal to C1"]:::safe
-    end
-    subgraph GCM["AES-GCM — encrypt nonce+counter, XOR into plaintext, then authenticate"]
-        direction LR
-        gN["nonce + counter"] --> gE1["E_K"] --> gX1(("XOR"))
-        gP1["P1"] --> gX1 --> gC1["C1 + auth tag"]:::safe
-    end
-    classDef leak fill:#c0392b,stroke:#7b241c,color:#fff;
-    classDef safe fill:#1e8449,stroke:#145a32,color:#fff;
-```
+![Three stacked schematics under one shared key. AES-ECB feeds each plaintext block straight into the cipher, so two identical plaintext blocks produce identical ciphertext blocks — structure leaks. AES-CBC XORs each block with the previous ciphertext (random IV) and AES-GCM XORs a per-message keystream, so identical plaintext no longer yields identical ciphertext.](diagrams/modes-ecb-cbc-gcm.svg)
 
 That single property, determinism, plus one more — ECB blocks are independent and carry no authentication — is the root of every attack in this document. There is no third root cause; every vector below is a direct consequence of one or both.
 
@@ -54,16 +33,7 @@ Two root causes, four vectors. Positional variants (an oracle that appends vs. p
 
 Every vector traces back to one of the two root causes and to no third — determinism drives the three confidentiality attacks, the missing integrity drives the one tampering attack:
 
-```mermaid
-flowchart TB
-    ECB["AES-ECB"] --> R1["Root cause 1 — Determinism<br/>equal plaintext block gives equal ciphertext block"]:::rc
-    ECB --> R2["Root cause 2 — No integrity, no chaining<br/>blocks independent and unauthenticated"]:::rc
-    R1 --> V1["Vector 1 — Pattern and structure leakage<br/>passive"]
-    R1 --> V2["Vector 2 — Equality and frequency inference<br/>passive / statistical"]
-    R1 --> V3["Vector 3 — Byte-at-a-time recovery<br/>active oracle"]
-    R2 --> V4["Vector 4 — Block malleability / cut-and-paste<br/>active splice"]
-    classDef rc fill:#1f3a5f,stroke:#0d1b2a,color:#fff;
-```
+![Tree of ECB's two root causes and four vectors. Root cause 1, determinism (equal plaintext block gives equal ciphertext block), drives Vector 1 pattern and structure leakage, Vector 2 equality and frequency inference, and Vector 3 byte-at-a-time recovery. Root cause 2, no integrity or chaining, drives Vector 4 block malleability / cut-and-paste. There is no third root cause.](diagrams/taxonomy.svg)
 
 ### Vector 1 — Pattern and structure leakage (determinism, passive)
 
@@ -88,25 +58,7 @@ When a service computes $\text{AES-ECB}(\text{attacker\_input} \parallel \text{s
 
 The mechanism is easier to see as block layout. The attacker sends just enough filler to leave exactly one unknown secret byte in the last position of a block, captures that ciphertext block as the target, then encrypts all 256 possible values of that byte in the same aligned position until one ciphertext block matches. Recovering the next byte shifts the filler down by one so the already-known bytes plus one new unknown fill the block. Diagram uses a 16-byte AES block; `A` is attacker filler, `S0, S1, …` are secret bytes, `?` is the unknown byte under test.
 
-```mermaid
-flowchart TB
-    O["Oracle: C = AES-ECB( attacker_input then secret ), fixed key never revealed"]:::oracle
-    subgraph B0["Recover secret byte 0 — send 15 filler bytes"]
-        direction LR
-        T0["block 0 plaintext:<br/>A A A A A A A A A A A A A A A S0<br/>then take its ciphertext = TARGET"]:::target
-        P0["probe, candidate = 0..255:<br/>A A A A A A A A A A A A A A A ?<br/>match when ? equals S0"]:::probe
-    end
-    subgraph B1["Recover secret byte 1 — send 14 filler bytes"]
-        direction LR
-        T1["block 0 plaintext:<br/>A A A A A A A A A A A A A A S0 S1<br/>then take its ciphertext = TARGET"]:::target
-        P1["probe, candidate = 0..255:<br/>A A A A A A A A A A A A A A S0 ?<br/>S0 already known; match gives S1"]:::probe
-    end
-    O --> B0 -->|"shift filler down one byte"| B1 -->|"repeat per byte"| Done["full secret recovered in about 256 x L queries"]:::result
-    classDef oracle fill:#1f3a5f,stroke:#0d1b2a,color:#fff;
-    classDef target fill:#7d6608,stroke:#4d3f06,color:#fff;
-    classDef probe fill:#5b2c6f,stroke:#3b1c4a,color:#fff;
-    classDef result fill:#1e8449,stroke:#145a32,color:#fff;
-```
+![Byte-at-a-time recovery against a local ECB oracle. Fifteen filler bytes push one unknown secret byte S0 into the last slot of a 16-byte block; encrypting yields a target ciphertext block, and trying every candidate 0 to 255 in that slot matches when the candidate equals S0. Shifting the filler down one byte recovers each subsequent byte; the whole secret falls in about 256 times L queries, with no key.](diagrams/vector3-byte-at-a-time.svg)
 
 *Scope: run against a local demonstration oracle only (`ecb_lab.oracle_attack.make_suffix_oracle`), never a third-party service.*
 
@@ -116,27 +68,7 @@ With no authentication tag and no chaining, ciphertext blocks are independent, p
 
 The splice works because the attacker controls the email field and can push the pieces onto 16-byte block boundaries. One crafted email isolates an `admin` + padding block; a second aligns the token so the trailing `role=user` block can be dropped and replaced. No key is ever needed — only the public `issue_token` interface. The `role=user` profile string below is exactly what `ecb_lab.cut_and_paste.ProfileService` builds.
 
-```mermaid
-flowchart TB
-    subgraph Donor["Donor token — attacker sets email to xxxxxxxxxx + admin+padding"]
-        direction LR
-        D0["block 0<br/>email=xxxxxxxxxx"] --- D1["block 1<br/>admin + padding"]:::admin --- D2["block 2+<br/>and uid=1000 role=user ..."]
-    end
-    subgraph Base["Base token — attacker sets email to aaaaaaaaaaa so role= ends on a block boundary"]
-        direction LR
-        B0["block 0<br/>email=aaaaaaaaaa"] --- B1["block 1<br/>a and uid=1000 role="] --- B2["block 2<br/>user + padding"]:::drop
-    end
-    subgraph Forged["Forged token — Base blocks 0 and 1, then the Donor admin block"]
-        direction LR
-        F0["email=aaaaaaaaaa"] --- F1["a and uid=1000 role="] --- F2["admin + padding"]:::admin
-    end
-    D1 -. "copy this ciphertext block" .-> F2
-    B2 -. "drop this block" .-> F2
-    Forged --> R["decrypts to role=admin — accepted, no integrity check to fail"]:::result
-    classDef admin fill:#c0392b,stroke:#7b241c,color:#fff;
-    classDef drop fill:#616a6b,stroke:#2c3436,color:#fff;
-    classDef result fill:#1e8449,stroke:#145a32,color:#fff;
-```
+![Cut-and-paste forgery from block strips. A donor token whose email isolates an 'admin + padding' ciphertext block, and a base token whose email aligns 'role=' to a block boundary so its trailing 'user + padding' block can be dropped. Splicing the donor's admin block onto the base's first two blocks yields a token that decrypts to role=admin, which the server accepts with no integrity check to fail.](diagrams/vector4-cut-and-paste.svg)
 
 *Scope: `ProfileService` is a self-contained local stand-in; the target key stays in-process and no external system is involved.*
 
