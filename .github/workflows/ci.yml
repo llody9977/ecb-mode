@@ -30,4 +30,6 @@ jobs:
         with:
           python-version: "3.12"
       - name: Ruff
-        run: pipx run ruff@0.16.3 check .
+        run: |
+          pip install ruff==0.16.3
+          ruff check .
