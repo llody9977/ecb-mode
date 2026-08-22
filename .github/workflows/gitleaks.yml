@@ -1,6 +1,7 @@
-# Server-side secret scan — the portable equivalent of push protection, and it
-# works on private repos without GitHub Advanced Security. Make it a required
-# status check so a secret blocks the merge.
+# Server-side secret scan — the portable equivalent of push protection; works on
+# private repos with no GitHub Advanced Security. Runs the gitleaks binary directly
+# over full history, which avoids gitleaks-action's initial-push diff-range bug (the
+# root commit has no parent) and needs no license key. Make it a required check.
 name: Secret scan
 
 on:
@@ -18,8 +19,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history so the whole PR range is scanned
-      - uses: gitleaks/gitleaks-action@v3
-        env:
-          # Only GitHub *Organizations* need a license key; personal repos are free.
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+          fetch-depth: 0   # full history so every commit is scanned
+      - name: Install gitleaks
+        run: |
+          VER=8.30.1
+          mkdir -p "$RUNNER_TEMP/gitleaks"
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP/gitleaks" gitleaks
+          echo "$RUNNER_TEMP/gitleaks" >> "$GITHUB_PATH"
+      - name: Scan
+        run: gitleaks detect --source . --redact --no-banner
