@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why AES-ECB mode is unsafe — interactive</title>
+<meta name="description" content="Why AES-ECB is unsafe: the formal break, four attack vectors, and interactive in-browser demonstrations running real AES.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🔓</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="hero">
+  <div class="eyebrow">Cryptography / Failure analysis</div>
+  <h1>AES-ECB mode is unsafe</h1>
+  <p class="lede">Electronic Codebook (ECB) encrypts every block independently under the same key, with no randomization and no dependency between blocks. That determinism — plus a second property, no integrity and no chaining — is enough to break confidentiality outright. ECB fails the standard IND-CPA definition with adversary advantage 1, regardless of key size.</p>
+  <p class="muted">Every claim below has a demonstration you can run right here. The crypto is <strong>real AES</strong> via the Web Crypto API — executed locally in your browser, no server calls. <a href="https://github.com/llody9977/ecb-mode">Source &amp; tests on GitHub →</a></p>
+</header>
+
+<main>
+  <div class="callout warn">
+    <span class="callout-title">Scope — educational / defensive use</span>
+    <p style="margin:0">These demos exist to help you detect, prevent, and fix ECB misuse. Each attack runs against a self-contained, in-page oracle — there is no network and no third-party system. Every weakness is paired with its mitigation. Do not point these techniques at any system you do not own or are not authorized to test.</p>
+  </div>
+
+  <h2>The mechanism</h2>
+  <p>A message is split into fixed-size blocks — 16 bytes for AES — and each block is encrypted independently under the same key, with no IV, no nonce, and no dependency on any other block: <code>Cᵢ = E_K(Pᵢ)</code>. NIST defines ECB in <a href="https://csrc.nist.gov/pubs/sp/800/38/a/final">SP 800-38A</a> and states what follows: inspecting any two ciphertext blocks reveals whether the corresponding plaintext blocks were equal. ECB behaves like a fixed lookup table — a codebook.</p>
+  <p>The difference from a safe mode is entirely in what feeds each block encryption. ECB feeds it the plaintext block alone, so two equal plaintext blocks take the same path to the same ciphertext. CBC first XORs each block with the previous ciphertext (the first with a random IV); GCM never encrypts the plaintext directly — it encrypts a per-message nonce-plus-counter and XORs the result in, then authenticates.</p>
+  <figure>
+    <img src="diagrams/modes-ecb-cbc-gcm.svg" alt="Three stacked schematics under one shared key: AES-ECB maps two identical plaintext blocks to identical ciphertext (structure leaks); AES-CBC XORs each block with the previous ciphertext and AES-GCM XORs a per-message keystream, so neither repeats.">
+  </figure>
+
+  <h2>Why determinism breaks confidentiality</h2>
+  <p>A mode should be indistinguishable under chosen-plaintext attack (IND-CPA): submit two equal-length messages, receive the encryption of one chosen at random, and you should not guess which better than a coin flip. Consider two 2-block messages — one is <code>A×16 ∥ A×16</code> (identical blocks), the other <code>A×16 ∥ B×16</code> (distinct). Answer "first" if the two ciphertext blocks are equal. You are right every time, because ECB's determinism makes <code>C₁ = C₂</code> exactly when <code>P₁ = P₂</code>. Advantage 1 — the maximum. A stronger key does not change this; the break is in the mode.</p>
+
+  <h2>Two root causes, four vectors</h2>
+  <p>Every vector traces back to one of two root causes and to no third — determinism drives the three confidentiality attacks, the missing integrity drives the one tampering attack.</p>
+  <figure>
+    <img src="diagrams/taxonomy.svg" alt="Tree: AES-ECB has two root causes — determinism (equal plaintext block gives equal ciphertext block) and no integrity/chaining. Determinism drives Vectors 1-3 (pattern leakage, equality inference, byte-at-a-time recovery); missing integrity drives Vector 4 (cut-and-paste). No third root cause.">
+  </figure>
+
+  <!-- VECTOR 1 -->
+  <h2>Vector 1 — Pattern &amp; structure leakage</h2>
+  <p>Identical plaintext regions become identical ciphertext regions. Uniform image backgrounds, repeated record layouts, and fixed protocol headers all survive encryption as visible structure. Encrypt a structured bitmap and its outline persists through ECB — but dissolves under CBC and GCM.</p>
+
+  <div class="demo" id="demo-image">
+    <div class="demo-head">Live in your browser</div>
+    <h3>Encrypt an image under each mode</h3>
+    <p class="hint">The same bitmap and the same AES-128 key, encrypted three ways. Only ECB preserves the shape.</p>
+    <div class="canvas-row">
+      <figure><canvas id="img-original" width="96" height="96"></canvas><figcaption>Plaintext</figcaption></figure>
+      <figure><canvas id="img-ecb" width="96" height="96"></canvas><figcaption style="color:var(--red)">AES-ECB</figcaption></figure>
+      <figure><canvas id="img-cbc" width="96" height="96"></canvas><figcaption style="color:var(--green)">AES-CBC</figcaption></figure>
+      <figure><canvas id="img-gcm" width="96" height="96"></canvas><figcaption style="color:var(--green)">AES-GCM</figcaption></figure>
+    </div>
+    <div class="row"><button id="img-run">Regenerate &amp; encrypt</button></div>
+  </div>
+
+  <div class="demo" id="demo-blocks">
+    <div class="demo-head">Live in your browser</div>
+    <h3>Block-repetition playground</h3>
+    <label for="pt-in">Plaintext (default: four identical 16-byte blocks)</label>
+    <textarea id="pt-in">ATTACKATDAWN1234ATTACKATDAWN1234ATTACKATDAWN1234ATTACKATDAWN1234</textarea>
+    <label for="key-in">Key (16-byte hex, or a passphrase — demonstration key handling only, never a real KDF)</label>
+    <input type="text" id="key-in" value="000102030405060708090a0b0c0d0e0f">
+    <div class="row">
+      <button id="blk-ecb">Encrypt with AES-ECB</button>
+      <button id="blk-cbc" class="secondary">Compare under CBC &amp; GCM</button>
+      <button id="blk-reset" class="secondary">Reset</button>
+    </div>
+    <div class="blocks" id="blk-out"></div>
+    <div class="verdict" id="blk-verdict"></div>
+  </div>
+
+  <!-- VECTOR 2 -->
+  <h2>Vector 2 — Equality &amp; frequency inference</h2>
+  <p>Determinism preserves equality across every row of a dataset encrypted under the same key: two ciphertext blocks are equal iff the plaintext blocks were. That alone lets an attacker cluster records by identical ciphertext with no decryption — the mechanism behind Adobe's 2013 breach, where ~153 million password records were ECB-encrypted (not hashed) without a per-user salt, so identical passwords produced byte-identical ciphertext.</p>
+  <div class="demo" id="demo-equality">
+    <div class="demo-head">Live in your browser</div>
+    <h3>Cluster users by ciphertext — no decryption</h3>
+    <label for="users-in">One <code>user: password</code> per line</label>
+    <textarea id="users-in" style="min-height:120px">alice: sunshine1
+bob: letmein123
+carol: sunshine1
+dave: qwerty2024
+erin: letmein123</textarea>
+    <div class="row"><button id="eq-run">Encrypt &amp; cluster</button></div>
+    <div class="table-wrap" id="eq-out" style="display:none"></div>
+    <div class="verdict" id="eq-verdict"></div>
+  </div>
+
+  <!-- VECTOR 3 -->
+  <h2>Vector 3 — Chosen-plaintext byte-at-a-time recovery</h2>
+  <p>When a service computes <code>ECB(attacker_input ∥ secret)</code> — say, an endpoint that appends a session token to whatever you submit before encrypting — you can recover the secret one byte at a time, from ciphertext alone, in roughly <code>256 × L</code> queries. Send just enough filler to push one unknown byte into the last slot of a block, capture that block as the target, then try all 256 values in that slot until the ciphertext matches. Shift down one byte and repeat.</p>
+  <figure>
+    <img src="diagrams/vector3-byte-at-a-time.svg" alt="Byte-at-a-time recovery against a local ECB oracle: 15 filler bytes push one unknown secret byte S0 into the last slot of a block; encrypting gives a target block, and trying candidates 0-255 in that slot matches when the candidate equals S0. Shifting the filler down one byte recovers each subsequent byte; the full secret falls in about 256xL queries with no key.">
+  </figure>
+  <div class="demo" id="demo-oracle">
+    <div class="demo-head">Live in your browser</div>
+    <h3>Watch the secret fall, one byte at a time</h3>
+    <p class="hint">The oracle holds a hidden secret and a random key you never see. Type a secret for it to hide, then run the attack — it only ever sees ciphertext.</p>
+    <label for="secret-in">Secret the oracle will hide</label>
+    <input type="text" id="secret-in" value="the eagle lands at midnight; bring the umbrella.">
+    <div class="row">
+      <button id="orc-run">Run recovery</button>
+      <span class="hint" id="orc-status"></span>
+    </div>
+    <div class="cells" id="orc-cells"></div>
+    <label style="margin-top:14px">Recovered so far</label>
+    <div class="recovered" id="orc-recovered"></div>
+    <div class="verdict" id="orc-verdict"></div>
+  </div>
+
+  <!-- VECTOR 4 -->
+  <h2>Vector 4 — Block malleability / cut-and-paste</h2>
+  <p>With no authentication tag and no chaining, ciphertext blocks are independent, portable units. If you can get chosen plaintext encrypted under the target key — for example by controlling your own account's email field — you can splice a block that decrypts to <code>role=admin</code> onto an otherwise legitimate token, and the server accepts it: no decryption error, no signature to forge. Cryptopals Set 2 Challenge 13.</p>
+  <figure>
+    <img src="diagrams/vector4-cut-and-paste.svg" alt="Cut-and-paste forgery: a donor token whose email isolates an 'admin+padding' ciphertext block, and a base token whose email aligns 'role=' to a block boundary so its trailing 'user' block can be dropped. Splicing the donor's admin block onto the base's first two blocks yields a token that decrypts to role=admin with no integrity check to catch it.">
+  </figure>
+  <div class="demo" id="demo-forge">
+    <div class="demo-head">Live in your browser</div>
+    <h3>Forge an admin token with only the public interface</h3>
+    <p class="hint">The service issues encrypted <code>role=user</code> tokens and trusts whatever role a token decrypts to. You never see its key.</p>
+    <label for="email-in">Your account email</label>
+    <input type="text" id="email-in" value="alice@example.com">
+    <div class="row">
+      <button id="frg-issue" class="secondary">Issue my normal token</button>
+      <button id="frg-forge">Forge an admin token</button>
+    </div>
+    <div id="frg-out" style="margin-top:14px"></div>
+    <div class="verdict" id="frg-verdict"></div>
+  </div>
+
+  <h2>Detecting ECB</h2>
+  <p>Two independent angles, because the ciphertext-only test cannot see a codebase and the source-only test cannot see a black box.</p>
+  <ul>
+    <li><strong>Black-box</strong> (ciphertext or oracle access): split the ciphertext into fixed-size blocks and look for duplicates — exactly what the block playground above does. Against a live oracle, submit repeated blocks and check whether any two outputs match.</li>
+    <li><strong>White-box</strong> (source / config review): ECB is frequently a library default, not a choice. Grep for <code>MODE_ECB</code>, <code>modes.ECB(</code>, <code>/ECB/</code>, or an unqualified <code>Cipher.getInstance("AES")</code> — which the Java Cryptography Architecture silently resolves to <code>AES/ECB/PKCS5Padding</code>. This last one is the highest-yield single check.</li>
+  </ul>
+  <p class="muted">A repeated ciphertext block is sufficient evidence of deterministic, block-independent encryption (ECB is the overwhelmingly likely cause) but not necessary: the passive test misses ECB when the sampled plaintext has no repeated block, which is why the active oracle variant is more reliable.</p>
+
+  <h2>The fix — authenticated encryption</h2>
+  <p>Use AEAD with a fresh nonce per message: <strong>AES-GCM</strong> or <strong>ChaCha20-Poly1305</strong>. The nonce breaks the determinism Vectors 1–3 depend on, and the authentication tag — verified before any plaintext is trusted — closes Vector 4: a tampered or spliced ciphertext fails verification instead of silently decrypting to attacker-chosen content.</p>
+  <div class="demo" id="demo-gcm">
+    <div class="demo-head">Live in your browser</div>
+    <h3>The same token under GCM — tamper and watch it fail</h3>
+    <p class="hint">Re-issue the token under AES-GCM, flip a single ciphertext bit, and try to read the role back.</p>
+    <div class="row"><button id="gcm-run">Encrypt under GCM &amp; tamper one bit</button></div>
+    <div id="gcm-out" style="margin-top:12px"></div>
+    <div class="verdict" id="gcm-verdict"></div>
+  </div>
+  <p>If AEAD genuinely is not available, CBC or CTR with a fresh random IV per message plus a separately computed MAC (encrypt-then-MAC, checked before decryption) restores confidentiality and integrity — but it is strictly more to get wrong than using an AEAD mode directly.</p>
+
+  <h2>Real-world evidence</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Case</th><th>What happened</th><th>Vector</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Adobe, 2013</strong></td><td>~153M password records encrypted (not hashed) in ECB with 3DES (inferred from the 8-byte block size), unsalted. Identical passwords → byte-identical ciphertext; researchers clustered accounts and used the leaked hints to confirm the common values within hours.</td><td>Vector 2</td></tr>
+        <tr><td><strong>Zoom, 2020</strong> (<a href="https://nvd.nist.gov/vuln/detail/CVE-2020-11500">CVE-2020-11500</a>)</td><td>Every meeting used one AES-128 key in ECB mode for all audio/video, preserving structure — and it was AES-128, not the AES-256 marketed at the time (<a href="https://citizenlab.ca/2020/04/move-fast-roll-your-own-crypto-a-quick-look-at-the-confidentiality-of-zoom-meetings/">Citizen Lab</a>).</td><td>Vector 1</td></tr>
+        <tr><td><strong>MS Office 365 Message Encryption, 2022</strong></td><td>OME encrypted message bodies with AES-ECB; repeated/structured content leaked across messages sharing a key. Microsoft declined to ship a fix (<a href="https://labs.withsecure.com/advisories/microsoft-office-365-message-encryption-insecure-mode-of-operation">WithSecure advisory</a>).</td><td>Vector 1</td></tr>
+        <tr><td><strong>Android apps, 2013</strong></td><td>Of 11,748 Google Play apps using crypto APIs, "do not use ECB" was the single most-violated rule — 7,656 apps, 5,656 of them because the developer specified only <code>AES</code> and the provider defaulted to ECB (<a href="https://dl.acm.org/doi/10.1145/2508859.2516693">Egele et al., ACM CCS 2013</a>).</td><td>Vectors 1–4</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Residual risk after switching to GCM</h2>
+  <p>GCM defeats all four vectors but adds a failure mode of its own: reusing a <code>(key, nonce)</code> pair breaks confidentiality and can allow the tag to be forged. An Internet-wide scan (<a href="https://eprint.iacr.org/2016/475">Böck et al., USENIX WOOT 2016</a>) found 184 HTTPS servers repeating AES-GCM nonces, fully breaking authenticity. A fresh random 96-bit nonce per message is necessary but must be preserved by every caller — it is not automatic just because the mode is GCM.</p>
+
+  <div class="callout">
+    <span class="callout-title">What to remember</span>
+    <p style="margin:0">ECB has exactly two root causes — deterministic block encryption and no integrity — and every attack here follows from one or both. The fix is authenticated encryption with a fresh nonce per message, not a patch to ECB itself.</p>
+  </div>
+
+  <h2>Primary references</h2>
+  <ul>
+    <li><a href="https://csrc.nist.gov/pubs/sp/800/38/a/final">NIST SP 800-38A</a> — the definition of ECB and the equal-block property.</li>
+    <li><a href="https://filippo.io/analyzing-the-adobe-leaked-passwords/">filippo.io — Analyzing the Adobe leaked passwords</a>, and <a href="https://www.schneier.com/blog/archives/2013/11/cryptographic_b.html">Schneier</a> — the Adobe 2013 case.</li>
+    <li><a href="https://cryptopals.com/">Cryptopals, Sets 1 &amp; 2</a> — detect-ECB, byte-at-a-time recovery, and cut-and-paste.</li>
+    <li><a href="https://dl.acm.org/doi/10.1145/2810103.2813651">Naveed, Kamara &amp; Wright, ACM CCS 2015</a> — inference attacks on property-preserving encryption.</li>
+  </ul>
+</main>
+
+<footer>
+  <p><strong>Disclaimer.</strong> Provided as-is, without warranty, for educational and defensive security research. Every demonstration runs entirely in your browser against a self-contained in-page oracle — no network, no third-party system. Use these techniques only against systems you own or are explicitly authorized to test.</p>
+  <p>The block/oracle/service logic is the same code that backs the <a href="https://github.com/llody9977/ecb-mode/tree/main/test">test suite</a> (verified against the NIST SP 800-38A AES-ECB vectors). Licensed under Apache-2.0. <a href="https://github.com/llody9977/ecb-mode">Repository →</a></p>
+</footer>
+
+<script type="module" src="js/ui.mjs"></script>
+</body>
+</html>

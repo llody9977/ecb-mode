@@ -1,56 +1,53 @@
 # AES-ECB mode is unsafe
 
-![CI](https://github.com/llody9977/ecb-mode/actions/workflows/ci.yml/badge.svg) ![CodeQL](https://github.com/llody9977/ecb-mode/actions/workflows/codeql.yml/badge.svg) ![Secret scan](https://github.com/llody9977/ecb-mode/actions/workflows/gitleaks.yml/badge.svg) ![License](https://img.shields.io/github/license/llody9977/ecb-mode)
+![CI](https://github.com/llody9977/ecb-mode/actions/workflows/ci.yml/badge.svg)
+![CodeQL](https://github.com/llody9977/ecb-mode/actions/workflows/codeql.yml/badge.svg)
+![Secret scan](https://github.com/llody9977/ecb-mode/actions/workflows/gitleaks.yml/badge.svg)
+![License](https://img.shields.io/github/license/llody9977/ecb-mode)
 
-Electronic Codebook (ECB) is a block cipher mode that encrypts every block independently under the same key, with no randomization and no dependency between blocks. That one property — determinism — combined with a second: no integrity check and no chaining between blocks, is enough to break confidentiality outright. ECB fails the standard IND-CPA security definition with an adversary advantage of 1, regardless of key size or key strength.
+Electronic Codebook (ECB) encrypts every block independently under the same key, with no randomization and no dependency between blocks. That determinism — plus no integrity and no chaining — breaks confidentiality outright: ECB fails the standard IND-CPA definition with adversary advantage 1, regardless of key size.
 
-**[Read the full write-up →](docs/ecb-mode-unsafe.md)** — the formal break, all four attack vectors below, real-world evidence for each, detection techniques, and the fix.
+**[▶ Open the interactive site →](https://llody9977.github.io/ecb-mode/)** — every attack below runs live in your browser against real AES.
 
-## Two root causes, four attack vectors
+## Run the attacks yourself, in the browser
 
-Every vector below is a direct consequence of one or both root causes — there is no third.
+The site turns each weakness into a demonstration you can drive. The crypto is **real AES** via the Web Crypto API, executed locally — no server. (Web Crypto omits ECB on purpose, so ECB is reconstructed as AES-CBC with a zero IV, one block at a time; this is verified against the NIST SP 800-38A test vectors in the test suite.)
 
-| Vector | Root cause | What happens | Shown via |
-| --- | --- | --- | --- |
-| **1. Pattern & structure leakage** | Determinism, passive | Identical plaintext blocks become identical ciphertext blocks; structure survives encryption | Zoom ([CVE-2020-11500](https://nvd.nist.gov/vuln/detail/CVE-2020-11500)), Microsoft Office 365 Message Encryption — real breaches |
-| **2. Equality & frequency inference** | Determinism, passive/statistical | Cluster or correlate records by matching ciphertext — no decryption needed | Adobe's 2013 password breach, ~153M records |
-| **3. Chosen-plaintext byte-at-a-time recovery** | Determinism, active oracle | Recover a secret the target appends to attacker input, one byte at a time, from ciphertext alone | Cryptopals Set 2 Ch.12 — reproduced live in the notebook |
-| **4. Block malleability / cut-and-paste** | No integrity, active splice | Splice a chosen ciphertext block into a legitimate token to forge a privileged role | Cryptopals Set 2 Ch.13 — reproduced live in the notebook |
+- **Pattern & structure leakage** — encrypt an image under ECB/CBC/GCM and watch the shape survive ECB; a block-repetition playground highlights identical ciphertext blocks.
+- **Equality inference** — cluster users by identical ciphertext with no decryption (the Adobe 2013 pattern).
+- **Byte-at-a-time recovery** — step a chosen-plaintext oracle and watch a hidden secret fall one byte at a time.
+- **Cut-and-paste** — forge a `role=admin` token from a `role=user` service using only its public interface.
+- **The fix** — the same token under AES-GCM: flip one bit and watch the authentication tag reject it.
 
-A fifth data point isn't a specific exploit but shows the scale of the problem: a 2013 study of 11,748 Android apps found "do not use ECB" was the single most-violated cryptographic rule, affecting 7,656 apps — most of them because a library silently defaulted to ECB when the developer under-specified the cipher.
+![ECB's two root causes and four attack vectors](docs/diagrams/taxonomy.svg)
 
-## See it happen
+## Structure
 
-![Four panels under one shared AES-128 key: a structured bitmap, then its AES-ECB, AES-CBC, and AES-GCM ciphertexts rebuilt as images. Only the ECB panel preserves the bitmap's outline; CBC and GCM are uniform noise.](notebooks/ecb_pattern_leakage.png)
+- [`docs/`](docs/) — the GitHub Pages site and the write-up itself: [`index.html`](docs/index.html), [`styles.css`](docs/styles.css), and the theme-aware SVG [`diagrams/`](docs/diagrams/).
+- [`docs/js/`](docs/js/) — the demo logic: [`crypto.mjs`](docs/js/crypto.mjs) (AES-ECB/CBC/GCM) and [`attacks.mjs`](docs/js/attacks.mjs) (the four vectors), plus [`ui.mjs`](docs/js/ui.mjs) which only wires them to the page.
+- [`test/`](test/) — a Node test suite that exercises the same modules against real AES, including the NIST SP 800-38A AES-ECB vectors.
 
-The second panel isn't a rendering artifact — it's the actual AES-ECB ciphertext of the image on the left. CBC (random IV) and GCM (AEAD), encrypted under the same key, produce uniform noise from the same plaintext.
+## Develop
 
-## Run it yourself
+```bash
+npm ci            # install eslint (tests need no dependencies)
+npm test          # node --test — verifies every vector against real AES
+npm run lint      # eslint
 
-[`notebooks/ecb_mode_deep_dive.ipynb`](notebooks/ecb_mode_deep_dive.ipynb) runs every vector above against a real AES-ECB oracle, with real captured output — nothing in it is a claim without code behind it. Open it in [Google Colab](https://colab.research.google.com/) and run all cells top to bottom; the setup cell detects Colab, clones this repository, and installs everything it needs automatically. No local Python setup required.
+# preview the site locally
+python3 -m http.server -d docs 8000   # then open http://localhost:8000
+```
 
-## Detecting ECB mode
-
-Two independent checks — full detail in the write-up:
-
-- **Black-box** (ciphertext or oracle access only): split ciphertext into fixed-size blocks and look for duplicates. No key, no source access.
-- **White-box** (source/config review): ECB is frequently a library default, not a deliberate choice. Grep for `MODE_ECB`, `modes.ECB(`, `/ECB/`, or an unqualified `Cipher.getInstance("AES")` — the single highest-yield check, responsible for three of the real-world instances cited in the write-up.
-
-## Repository structure
-
-- [`docs/ecb-mode-unsafe.md`](docs/ecb-mode-unsafe.md) — the full write-up: mechanism, formal proof, all four vectors, real-world evidence, detection, and the defensive fix.
-- [`notebooks/ecb_mode_deep_dive.ipynb`](notebooks/ecb_mode_deep_dive.ipynb) — the runnable companion notebook.
-- [`src/ecb_lab/`](src/ecb_lab/) — the tested implementation backing Vectors 1, 3, and 4 (Vector 2's equality-inference demo lives directly in the notebook).
-- [`tests/`](tests/) — pytest coverage for every module above, exercised against real AES.
-
-## Disclaimer
-
-This repository is for **educational and defensive** security research: understanding ECB's weaknesses in order to detect, prevent, and fix them. Every demonstration is paired with its mitigation. Any code here must be run only against systems you own or are explicitly authorized to test — never third-party or production systems. See [`DISCLAIMER.md`](DISCLAIMER.md).
+Diagrams are regenerated with `python3 docs/diagrams/generate_diagrams.py`.
 
 ## Security
 
-Found a vulnerability? Report it privately — see [`SECURITY.md`](SECURITY.md). Please do not open a public issue for security reports.
+Found a vulnerability? Report it privately — see [`SECURITY.md`](SECURITY.md). Do not open a public issue for security reports.
+
+## Disclaimer
+
+For **educational and defensive** security research. Every demonstration runs entirely in your browser against a self-contained, in-page oracle — no network, no third-party system. Use these techniques only against systems you own or are explicitly authorized to test. See [`DISCLAIMER.md`](DISCLAIMER.md).
 
 ## License
 
-Licensed under **Apache-2.0** — see [`LICENSE`](LICENSE). Covers everything in the repository: code, documentation, and the notebook.
+Licensed under **Apache-2.0** — see [`LICENSE`](LICENSE). Covers the whole repository: code, documentation, and diagrams.

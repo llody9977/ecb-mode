@@ -1,6 +1,6 @@
-# CodeQL code scanning — the source of the "scan result" security badge.
-# Set `languages` to match this repo. Remove if the stack has no CodeQL support
-# (then rely on dependency-review + linters + Dependabot instead).
+# NOTE: github/codeql-action is still published on Node 20 (no Node 24 major yet),
+# so this workflow surfaces the "Node.js 20 is deprecated" runner warning until
+# GitHub ships a Node 24 release. That warning is expected here, not a misconfig.
 name: CodeQL
 
 on:
@@ -9,9 +9,8 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: "27 4 * * 1"   # weekly, offset so it isn't on the hour
+    - cron: "27 4 * * 1"
 
-# Least privilege: read the code, write only scanning results.
 permissions:
   contents: read
 
@@ -26,11 +25,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: ["python"]   # e.g. javascript-typescript, go, java-kotlin, ...
+        language: ["javascript-typescript"]
     steps:
       - uses: actions/checkout@v5
       - uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-      - uses: github/codeql-action/autobuild@v3
       - uses: github/codeql-action/analyze@v3

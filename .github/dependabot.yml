@@ -1,5 +1,3 @@
-# Keep dependencies and GitHub Actions patched. Add/adjust ecosystems to match
-# the repo (npm, pip, gomod, cargo, bundler, maven, docker, ...).
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -8,8 +6,7 @@ updates:
       interval: "weekly"
     labels: ["dependencies"]
 
-  # Example for a Python project — change or remove to match this repo.
-  - package-ecosystem: "pip"
+  - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
