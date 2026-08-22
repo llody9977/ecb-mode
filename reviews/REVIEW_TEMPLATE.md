@@ -48,15 +48,31 @@ Record every claim that affects security, compliance, standards, protocol or imp
 
 Use **covered**, **not applicable** with a reason, **required gap**, or **optional extension**. Add one row per topic.
 
-| Topic | Definition | Boundaries | Actors/components | Mechanism/sequence | Assumptions/dependencies | Threats/failures | Limits/residual risk | Selection/use | Operations/evidence | Recovery/lifecycle | Interoperability/migration | Unsafe alternatives |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-|  |  |  |  |  |  |  |  |  |  |  |  |  |
+| Topic | Definition | Boundaries | Actors/components | Mechanism/sequence | Assumptions/dependencies | Threats/failures | Limits/residual risk | Selection/use | Operations/evidence | Recovery/lifecycle | Interoperability/migration | Unsafe alternatives | Visual representation |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+|  |  |  |  |  |  |  |  |  |  |  |  |  |  |
 
 ## Cross-format and cross-page ledger
 
 | Concept or claim | Representations compared | Result |
 | --- | --- | --- |
 |  |  |  |
+
+## Visual content ledger
+
+One row per diagram, figure, chart, or screenshot. Assessed independently of the prose — agreement with the text is not correctness.
+
+| Visual | Claims it asserts (labels, arrows, ordering, axes, units, legend, annotated values) | Independently correct? | Self-sufficient when detached (scope, units, qualifiers)? | Caption and alt text verified | Generator and correspondence check | Standalone defensibility (weakness visuals) | Result |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+|  |  |  |  |  |  |  |  |
+
+### Representation opportunities
+
+Where dense prose would be materially clearer as a visual. Optional extension by default; required gap only where the prose is hard to follow without one.
+
+| Location | What is dense | Proposed form | Required gap or optional extension |
+| --- | --- | --- | --- |
+|  |  |  |  |
 
 ## Applicable durable content decisions
 
@@ -96,6 +112,7 @@ None recorded yet.
 - [ ] Every mandatory pass was completed separately.
 - [ ] Current primary sources were used for standards-sensitive and time-sensitive claims.
 - [ ] Prose, metadata, diagrams, captions, alt text, examples, summaries, navigation, and generators were reconciled.
+- [ ] Every visual was reviewed as its own artifact for independent correctness, detached self-sufficiency, generator provenance, and standalone defensibility, separately from the cross-format pass.
 - [ ] Applicable mechanical and rendered checks passed or their limitations are recorded.
 - [ ] Applicable durable content decisions were reconciled after the independent claim review, and every reversal or supersession is justified.
 - [ ] Residual exhaustion was completed after findings were assembled.
