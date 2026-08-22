@@ -106,7 +106,9 @@ async function runEquality() {
       const gi = shared.get(r.name);
       const color = gi != null ? palette[gi % palette.length] : "";
       const dot = gi != null ? `<span style="color:${color}">● </span>` : "";
-      return `<tr><td>${dot}${esc(r.name)}</td><td>${esc(r.password)}</td><td class="tok" style="${gi != null ? `color:${color}` : ""}">${r.cipherHex.slice(0, 32)}…</td></tr>`;
+      // only mark it elided when it actually is — a 1-block ciphertext is 32 hex chars
+      const shown = r.cipherHex.length > 32 ? `${r.cipherHex.slice(0, 32)}…` : r.cipherHex;
+      return `<tr><td>${dot}${esc(r.name)}</td><td>${esc(r.password)}</td><td class="tok" style="${gi != null ? `color:${color}` : ""}">${shown}</td></tr>`;
     }).join("")}</tbody></table>`;
   const desc = clusters.map((g) => g.join(" + ")).join("; ");
   verdict($("eq-verdict"), clusters.length ? "bad" : "good",

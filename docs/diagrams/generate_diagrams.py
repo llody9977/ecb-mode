@@ -96,13 +96,15 @@ def panel(x, y, w, h):
 # ---------------- Diagram 2: taxonomy ----------------
 def d2():
     b = [box(W / 2 - 80, 62, 160, 44, "AES-ECB", fill=NAVY, stroke="#0d1b2a", tc="#fff", size=15, weight="700")]
-    r1 = (90, 150, 320, 58)
-    r2 = (490, 150, 320, 58)
-    b.append(box(*r1, "Root cause 1 — Determinism\nequal plaintext block → equal ciphertext block", fill=NAVY, stroke="#0d1b2a", tc="#fff", size=12.5))
-    b.append(box(*r2, "Root cause 2 — No integrity / no chaining\nblocks independent and unauthenticated", fill=NAVY, stroke="#0d1b2a", tc="#fff", size=12.5))
+    r1 = (70, 150, 340, 68)
+    r2 = (490, 150, 340, 68)
+    b.append(box(*r1, "Root cause 1 — Determinism\nsame plaintext block → same ciphertext block,\nat any position, in any message",
+                 fill=NAVY, stroke="#0d1b2a", tc="#fff", size=12.5))
+    b.append(box(*r2, "Root cause 2 — No authentication\nnothing detects a ciphertext that was\naltered or reassembled",
+                 fill=NAVY, stroke="#0d1b2a", tc="#fff", size=12.5))
     b.append(arrow(W / 2, 106, r1[0] + r1[2] / 2, r1[1] - 2))
     b.append(arrow(W / 2, 106, r2[0] + r2[2] / 2, r2[1] - 2))
-    vy, vh = 258, 66
+    vy, vh = 268, 66
     vs = [
         (30, 190, "Vector 1", "Pattern & structure leakage", "passive", BLUE),
         (232, 190, "Vector 2", "Equality & frequency inference", "passive / statistical", BLUE),
@@ -116,11 +118,18 @@ def d2():
         b.append(text(cx, vy + 22, vt, size=13, fill=INK, weight="700"))
         b.append(text(cx, vy + 40, desc, size=11.5, fill=INK))
         b.append(text(cx, vy + 56, mode, size=11, fill=MUTED, weight="500"))
-    r1c = r1[0] + r1[2] / 2
+    r1c, r2c = r1[0] + r1[2] / 2, r2[0] + r2[2] / 2
+    v4cx = vs[3][0] + vs[3][1] / 2
     for x, w, *_ in vs[:3]:
         b.append(arrow(r1c, r1[1] + r1[3], x + w / 2, vy - 2))
-    b.append(arrow(r2[0] + r2[2] / 2, r2[1] + r2[3], vs[3][0] + vs[3][1] / 2, vy - 2))
-    return svg(W, 348, "ECB's two root causes and four attack vectors", "".join(b),
+    b.append(arrow(r2c, r2[1] + r2[3], v4cx, vy - 2))
+    # Vector 4 needs BOTH causes: determinism is what makes the moved block decrypt
+    # the same way at its new position. Dashed to mark the second dependency.
+    b.append(path(f"M {r1c} {r1[1] + r1[3]} C {r1c} {r1[1] + r1[3] + 34}, {v4cx - 120} {vy - 30}, {v4cx - 26} {vy - 2}", dashed=True))
+    b.append(alabel((r1c + v4cx) / 2 + 40, vy - 26, "Vector 4 needs determinism too"))
+    b.append(text(W / 2, 372, "Scope: educational analysis of ECB's failure modes; every vector here is demonstrated only against the local in-page oracle in this project.",
+                  size=10.5, fill=MUTED))
+    return svg(W, 388, "ECB's two root causes and four attack vectors", "".join(b),
                subtitle="every vector follows from one or both root causes — there is no third")
 
 # ---------------- byte-cell block ----------------
@@ -145,6 +154,22 @@ def d3():
              fill=NAVY, stroke="#0d1b2a", tc="#fff", size=13)]
     bx = (W - 16 * 34) / 2
 
+    def swatch(x, y, kind, lbl):
+        if kind == "known":
+            r = f'<rect x="{x}" y="{y}" width="15" height="15" rx="3" fill="#fef3c7" stroke="{AMBER}" stroke-width="1.2"/>'
+        elif kind == "unknown":
+            r = f'<rect x="{x}" y="{y}" width="15" height="15" rx="3" fill="#ede9fe" stroke="{PURPLE}" stroke-width="1.2"/>'
+        else:
+            r = f'<rect class="cellA" x="{x}" y="{y}" width="15" height="15" rx="3" stroke-width="1.2"/>'
+        return r + text(x + 21, y + 12, lbl, size=10.5, fill=MUTED, anchor="start", weight="500"), x + 21 + len(lbl) * 5.5 + 22
+
+    def legend(y, items):
+        out, x = [], 48
+        for kind, lbl in items:
+            s, x = swatch(x, y, kind, lbl)
+            out.append(s)
+        return "".join(out)
+
     def step(y0, title, cap1, tcells, cap2, pcells):
         o = [panel(30, y0, W - 60, 168),
              text(48, y0 + 24, title, size=13, fill=INK, weight="700", anchor="start"),
@@ -154,25 +179,29 @@ def d3():
              block_cells(bx, y0 + 118, pcells)]
         return "".join(o)
     A = ("A", "A")
-    b.append(step(118, "Step 1 · recover secret byte 0  —  send 15 filler bytes",
+    b.append(legend(114, [("a", "A  =  attacker-chosen filler byte"),
+                          ("known", "S0, S1  =  secret byte held by the oracle"),
+                          ("unknown", "?  =  candidate the attacker is trying")]))
+    b.append(step(140, "Step 1 · recover secret byte 0  —  send 15 filler bytes",
                   "TARGET  ·  encrypt these 16 bytes, keep ciphertext block 0", [A] * 15 + [("S0", "known")],
                   "PROBE  ·  try candidate = 0..255 in the last slot — block matches when ? = S0", [A] * 15 + [("?", "unknown")]))
-    b.append(text(W / 2, 306, "▼   shift the filler down by one byte", size=12, fill=MUTED, weight="600"))
-    b.append(step(320, "Step 2 · recover secret byte 1  —  send 14 filler bytes",
+    b.append(text(W / 2, 328, "▼   shift the filler down by one byte", size=12, fill=MUTED, weight="600"))
+    b.append(step(342, "Step 2 · recover secret byte 1  —  send 14 filler bytes",
                   "TARGET  ·  S0 is already known from step 1", [A] * 14 + [("S0", "known"), ("S1", "known")],
                   "PROBE  ·  match now reveals S1 — then shift and repeat for every byte", [A] * 14 + [("S0", "known"), ("?", "unknown")]))
-    b.append(text(W / 2, 508, "▼   repeat for each byte", size=12, fill=MUTED, weight="600"))
-    b.append(box(W / 2 - 240, 522, 480, 42, "Full secret recovered in ≈ 256 × L queries — the key is never needed",
-                 fill=GREEN, stroke="#15803d", tc="#fff", size=13))
-    b.append(text(W / 2, 584, "Scope: run only against a local demonstration oracle (attacks.mjs makeSuffixOracle), never a third-party service.",
+    b.append(text(W / 2, 530, "▼   repeat for each byte", size=12, fill=MUTED, weight="600"))
+    b.append(box(W / 2 - 290, 544, 580, 54,
+                 "Full secret recovered without ever holding the key\n≤ 256 × L oracle queries for an L-byte secret — about 128 × L on average",
+                 fill=GREEN, stroke="#15803d", tc="#fff", size=13, lh=17))
+    b.append(text(W / 2, 620, "Scope: run only against a local demonstration oracle (attacks.mjs makeSuffixOracle), never a third-party service.",
                   size=10.5, fill=MUTED))
-    return svg(W, 600, "Vector 3 — chosen-plaintext byte-at-a-time recovery", "".join(b))
+    return svg(W, 636, "Vector 3 — chosen-plaintext byte-at-a-time recovery", "".join(b))
 
 # ---------------- Diagram 4: cut-and-paste ----------------
 def d4():
     b = []
-    bw, bh = 254, 46
-    x0 = (W - 3 * bw) / 2
+    bw, bh = 205, 46
+    x0 = (W - 4 * bw) / 2  # 4 columns: the donor token really is 4 blocks long
 
     def tokrow(y, label, blocks):
         o = [text(x0, y - 10, label, size=12.5, fill=INK, weight="700", anchor="start")]
@@ -193,7 +222,7 @@ def d4():
         return "".join(o), [x0 + i * bw + (bw - 6) / 2 for i in range(len(blocks))]
     yD, yB, yF = 88, 196, 322
     d, _ = tokrow(yD, "Donor token  —  attacker email = ‘xxxxxxxxxx’ + admin-padding",
-                  [("email=xxxxxxxxxx", "n"), ("admin + padding", "admin"), ("&uid=1000&role=user …", "n")])
+                  [("email=xxxxxxxxxx", "n"), ("admin + padding", "admin"), ("&uid=1000&role=u", "n"), ("ser + padding", "n")])
     bb, _ = tokrow(yB, "Base token  —  attacker email = ‘aaaaaaaaaaa’ (aligns role= to a block boundary)",
                    [("email=aaaaaaaaaa", "n"), ("a&uid=1000&role=", "n"), ("user + padding", "drop")])
     ff, fxc = tokrow(yF, "Forged token  —  Base blocks 0–1 + Donor’s admin block",
@@ -201,8 +230,13 @@ def d4():
     b += [d, bb, ff]
     donor_admin_cx = x0 + 1 * bw + (bw - 6) / 2
     forged_admin_cx = fxc[2]
-    b.append(path(f"M {donor_admin_cx} {yD + bh} C {donor_admin_cx} {yD + bh + 70}, {forged_admin_cx} {yF - 70}, {forged_admin_cx} {yF - 2}", dashed=True, color=RED))
-    b.append(alabel((donor_admin_cx + forged_admin_cx) / 2, yD + bh + 22, "copy this ciphertext block", fill=RED))
+    # Route the splice orthogonally through the channel right of the base row's
+    # blocks (the base token is 3 blocks, so column 3 is free) — a direct curve
+    # would cross the "user + padding" block it is supposed to be replacing.
+    gut, yTop, yBot = x0 + 3 * bw + 40, yD + bh + 14, yF - 16
+    b.append(path(f"M {donor_admin_cx} {yD + bh} L {donor_admin_cx} {yTop} L {gut} {yTop} "
+                  f"L {gut} {yBot} L {forged_admin_cx} {yBot} L {forged_admin_cx} {yF - 2}", dashed=True, color=RED))
+    b.append(alabel((donor_admin_cx + gut) / 2, yTop - 4, "copy this ciphertext block", fill=RED))
     b.append(alabel(x0 + 2 * bw + (bw - 6) / 2, yB + bh + 16, "dropped before splicing", fill=GRAY))
     b.append(box(W / 2 - 250, 392, 500, 42, "Decrypts to role=admin  —  server accepts it; no integrity check to fail",
                  fill=GREEN, stroke="#15803d", tc="#fff", size=13))
@@ -240,7 +274,7 @@ def d1():
         "Feeds each plaintext block straight into AES —\nsame block in, same block out.",
         "#dc2626", "#dc2626", True, RED, "C₁ = C₂  →  the pattern leaks"))
     b.append(moderow(292, "AES-CBC",
-        "XORs each block with the previous ciphertext\nfirst, so the cipher never sees the same input twice.",
+        "XORs each block with the previous ciphertext\nfirst, so identical blocks enter AES differently.",
         "#0ea5e9", "#f59e0b", False, GREEN, "C₁ ≠ C₂  →  no leak"))
     b.append(moderow(400, "AES-GCM",
         "XORs the plaintext with a fresh per-message\nkeystream before it is ever a ciphertext block.",

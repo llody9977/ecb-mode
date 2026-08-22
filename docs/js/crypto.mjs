@@ -5,7 +5,7 @@
 // CBC computes E_K(P XOR 0) = E_K(P) = ECB(P). Multi-block ECB is then just each
 // block encrypted independently (CBC's chaining is never allowed to kick in).
 // This runs identically in the browser and in Node's WebCrypto, and is verified
-// against the NIST SP 800-38A test vector in the test suite.
+// against the NIST SP 800-38A test vectors in the test suite.
 //
 // ECB is used here intentionally, alongside CBC and GCM, to demonstrate the
 // failure it causes. Do not copy the ECB path into a system that needs

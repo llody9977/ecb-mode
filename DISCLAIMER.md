@@ -8,8 +8,6 @@
 
 This project is provided "as is", without warranty of any kind, express or implied. The authors and contributors accept no liability for any claim, damage, or other consequence arising from its use. You use it at your own risk.
 
-<!-- Include the section below for any security, offensive-security, exploit, or
-     otherwise dual-use content. Delete it if the repository has none. -->
 ## Authorized and educational use only
 
 This repository exists for **educational and defensive security** purposes: understanding how a weakness works so it can be detected, prevented, and fixed.
