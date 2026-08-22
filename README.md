@@ -40,3 +40,15 @@ Two independent checks — full detail in the write-up:
 - [`notebooks/ecb_mode_deep_dive.ipynb`](notebooks/ecb_mode_deep_dive.ipynb) — the runnable companion notebook.
 - [`src/ecb_lab/`](src/ecb_lab/) — the tested implementation backing Vectors 1, 3, and 4 (Vector 2's equality-inference demo lives directly in the notebook).
 - [`tests/`](tests/) — pytest coverage for every module above, exercised against real AES.
+
+## Disclaimer
+
+This repository is for **educational and defensive** security research: understanding ECB's weaknesses in order to detect, prevent, and fix them. Every demonstration is paired with its mitigation. Any code here must be run only against systems you own or are explicitly authorized to test — never third-party or production systems. See [`DISCLAIMER.md`](DISCLAIMER.md).
+
+## Security
+
+Found a vulnerability? Report it privately — see [`SECURITY.md`](SECURITY.md). Please do not open a public issue for security reports.
+
+## License
+
+Code (`src/`, `tests/`, `scripts/`) is licensed under **Apache-2.0** — see [`LICENSE`](LICENSE). Documentation and the notebook (`docs/`, `notebooks/`, `README.md`) are licensed under **CC-BY-4.0** — see [`LICENSE-docs`](LICENSE-docs).

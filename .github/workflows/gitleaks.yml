@@ -1,0 +1,25 @@
+# Server-side secret scan — the portable equivalent of push protection, and it
+# works on private repos without GitHub Advanced Security. Make it a required
+# status check so a secret blocks the merge.
+name: Secret scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so the whole PR range is scanned
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          # Only GitHub *Organizations* need a license key; personal repos are free.
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
