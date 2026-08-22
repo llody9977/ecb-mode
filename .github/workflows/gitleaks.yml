@@ -3,13 +3,18 @@
 #
 #   - GitHub matches *provider* patterns (registered formats: cloud keys, PATs,
 #     payment keys) and blocks them at push. It is better than gitleaks at those.
-#     It does not cover generic secrets here: private keys, high-entropy strings,
-#     .env-style assignments, any format nobody registered. That is GitHub's
-#     "non-provider patterns" feature, which requires an organization-owned repo on
-#     Team or Enterprise Cloud with GitHub Secret Protection. This repo belongs to a
-#     personal account, so that setting does not exist for it and cannot be turned
-#     on — gitleaks is the only thing covering that category, not a second opinion
-#     on it. Same for validity checks. Revisit only if this moves to an org.
+#     Everything generic is GitHub's "non-provider patterns" feature, which needs an
+#     organization-owned repo on Team or Enterprise Cloud with GitHub Secret
+#     Protection. This repo belongs to a personal account, so that setting does not
+#     exist for it and cannot be turned on. Note that private keys are on GitHub's
+#     non-provider list too — a committed PEM key is NOT caught natively here.
+#   - gitleaks' own defaults are also mostly provider rules. Measured against seven
+#     generic shapes it caught two: private keys and one `api_key = "..."` form,
+#     missing auth headers, connection strings, password assignments and URLs with
+#     inline credentials. .gitleaks.toml at the repo root adds rules for those and
+#     is auto-discovered, so this job, the pre-commit hook and a bare
+#     `gitleaks detect` all use it with no extra flags. Keep that file in step with
+#     this comment; without it this job covers ~2/7 of the generic category.
 #   - Push protection is bypassable: a pusher can override it with a stated reason.
 #     This runs as a required status check on main, which a merge cannot skip.
 #   - It scans full history on every push and PR, not just the pushed delta.

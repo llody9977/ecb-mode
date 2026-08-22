@@ -1,0 +1,73 @@
+# gitleaks rules for this repository. Auto-discovered at the repo root, so the
+# pre-commit hook, the Secret scan workflow, and a bare `gitleaks detect` all use
+# it with no extra flags.
+#
+# Why these exist. GitHub's own secret scanning covers *provider* patterns —
+# formats a partner has registered — and blocks them at push. Everything generic
+# (private keys, auth headers, connection strings, passwords) is GitHub's
+# "non-provider patterns" feature, which requires an organization-owned repository
+# on Team or Enterprise Cloud with GitHub Secret Protection. This repository is
+# owned by a personal account, so that feature cannot be turned on here at all.
+#
+# gitleaks' default ruleset is also mostly provider-based: of seven generic secret
+# shapes tested, it caught two (private keys, and one `api_key = "..."` form) and
+# missed auth headers, connection strings, password assignments and URLs with
+# inline credentials. The rules below close that gap. Re-test with the fixtures in
+# the comment at the bottom of this file if you change them.
+
+title = "ecb-mode secret scanning"
+
+[extend]
+# Keep the ~170 upstream provider rules; these rules are additive, not a replacement.
+useDefault = true
+
+[[rules]]
+id = "http-basic-auth-header"
+description = "HTTP Basic authorization header with encoded credentials"
+regex = '''(?i)authorization\s*:\s*basic\s+[A-Za-z0-9+/]{16,}={0,2}'''
+tags = ["auth", "header", "non-provider"]
+
+[[rules]]
+id = "http-bearer-token"
+description = "HTTP Bearer token in an authorization header"
+regex = '''(?i)authorization\s*:\s*bearer\s+[A-Za-z0-9._\-]{20,}'''
+tags = ["auth", "header", "non-provider"]
+
+[[rules]]
+id = "db-connection-string"
+description = "Database connection string carrying inline credentials"
+regex = '''(?i)(postgres|postgresql|mysql|mongodb(\+srv)?|redis|amqp)://[^:\s/]+:[^@\s/]{6,}@'''
+tags = ["database", "credentials", "non-provider"]
+
+[[rules]]
+id = "url-inline-credentials"
+description = "URL with a username:password embedded in the authority"
+regex = '''(?i)https?://[^:\s/]+:[^@\s/]{6,}@[^\s/]+'''
+tags = ["credentials", "non-provider"]
+
+[[rules]]
+id = "password-assignment"
+description = "Password assigned to a quoted literal in source or config"
+regex = '''(?i)\b(password|passwd|pwd)\b\s*[:=]\s*["'][^"'\s]{8,}["']'''
+tags = ["credentials", "non-provider"]
+
+# No allowlist. This repository is about cryptography and carries material that
+# looks secret-shaped but is published test data — the NIST SP 800-38A key
+# 2b7e15…4f3c and its vectors, the demonstration key 000102…0e0f pre-filled in the
+# block playground, and the sample passwords in the equality demo. All of them were
+# scanned against the rules above, across full history, both with and without an
+# allowlist: zero findings either way. An allowlist that suppresses nothing is not
+# free — it blinds the scanner to those exact values if a future rule would have
+# caught a real secret among them. Add entries only when a scan actually trips, and
+# scope them to the value rather than the file.
+#
+# Shapes these rules are expected to catch. Written descriptively rather than as
+# literal fixtures: a real PEM header in this file trips the detect-private-key
+# pre-commit hook, which is that hook working correctly.
+#   PEM private-key header line              -> private-key        (upstream rule)
+#   Authorization header, Basic + base64     -> http-basic-auth-header
+#   Authorization header, Bearer + token     -> http-bearer-token
+#   postgres/mysql/mongodb URI with password -> db-connection-string
+#   api_key assigned a 32-char literal       -> generic-api-key    (upstream rule)
+#   password assigned an 8+ char literal     -> password-assignment
+#   http(s) URL with user:pass in authority  -> url-inline-credentials
