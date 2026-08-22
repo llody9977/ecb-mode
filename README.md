@@ -1,5 +1,7 @@
 # AES-ECB mode is unsafe
 
+![CI](https://github.com/llody9977/ecb-mode/actions/workflows/ci.yml/badge.svg) ![CodeQL](https://github.com/llody9977/ecb-mode/actions/workflows/codeql.yml/badge.svg) ![Secret scan](https://github.com/llody9977/ecb-mode/actions/workflows/gitleaks.yml/badge.svg) ![License](https://img.shields.io/github/license/llody9977/ecb-mode)
+
 Electronic Codebook (ECB) is a block cipher mode that encrypts every block independently under the same key, with no randomization and no dependency between blocks. That one property — determinism — combined with a second: no integrity check and no chaining between blocks, is enough to break confidentiality outright. ECB fails the standard IND-CPA security definition with an adversary advantage of 1, regardless of key size or key strength.
 
 **[Read the full write-up →](docs/ecb-mode-unsafe.md)** — the formal break, all four attack vectors below, real-world evidence for each, detection techniques, and the fix.
