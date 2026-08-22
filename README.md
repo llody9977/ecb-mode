@@ -1,41 +1,42 @@
-# ECB mode: documentation project
+# AES-ECB mode is unsafe
 
-## Purpose
+Electronic Codebook (ECB) is a block cipher mode that encrypts every block independently under the same key, with no randomization and no dependency between blocks. That one property — determinism — combined with a second: no integrity check and no chaining between blocks, is enough to break confidentiality outright. ECB fails the standard IND-CPA security definition with an adversary advantage of 1, regardless of key size or key strength.
 
-This project answers one question with runnable proof, not theory: **why is AES-ECB mode unsafe, and how would you know if a system is using it?** The primary reference is [`docs/ecb-mode-unsafe.md`](docs/ecb-mode-unsafe.md), covering:
+**[Read the full write-up →](docs/ecb-mode-unsafe.md)** — the formal break, all four attack vectors below, real-world evidence for each, detection techniques, and the fix.
 
-- what ECB mode does mechanically, and the formal proof that it breaks semantic security (IND-CPA), independent of key strength;
-- a comprehensive attack surface reduced to its two actual root causes — determinism, and no integrity/chaining — and the four vectors that follow from them (pattern leakage, equality/frequency inference, chosen-plaintext byte-at-a-time recovery, block malleability/cut-and-paste);
-- real-world evidence for each vector, independently verified against primary sources (Adobe 2013, Zoom CVE-2020-11500, Microsoft Office 365 Message Encryption, the CCS 2013 Android crypto-misuse study, CCS 2015 hospital-record inference attacks);
-- how to detect ECB usage, both black-box (ciphertext/oracle analysis) and white-box (the library-default footguns that cause most accidental ECB use in practice);
-- the defensive control (authenticated encryption) and the residual risk that remains after adopting it.
+## Two root causes, four attack vectors
 
-The primary technique for each vector is implemented in [`src/ecb_lab/`](src/ecb_lab/), covered by tests in [`tests/`](tests/), and run end-to-end with real captured output in [`notebooks/ecb_mode_deep_dive.ipynb`](notebooks/ecb_mode_deep_dive.ipynb). Related sub-techniques named in the documentation (codebook harvesting, cross-dataset correlation, frequency/rank matching, block reordering, standalone replay) are direct consequences of the same two root causes and are described but not separately demonstrated in code.
+Every vector below is a direct consequence of one or both root causes — there is no third.
 
-Content is organized as a security-flaw deep dive on a single primary subject, not a general cryptography survey — ECB mode's boundary with other block cipher modes (CBC, CTR, GCM) is covered only to the extent needed to explain what ECB gets wrong and what a correct alternative looks like.
+| Vector | Root cause | What happens | Shown via |
+| --- | --- | --- | --- |
+| **1. Pattern & structure leakage** | Determinism, passive | Identical plaintext blocks become identical ciphertext blocks; structure survives encryption | Zoom ([CVE-2020-11500](https://nvd.nist.gov/vuln/detail/CVE-2020-11500)), Microsoft Office 365 Message Encryption — real breaches |
+| **2. Equality & frequency inference** | Determinism, passive/statistical | Cluster or correlate records by matching ciphertext — no decryption needed | Adobe's 2013 password breach, ~153M records |
+| **3. Chosen-plaintext byte-at-a-time recovery** | Determinism, active oracle | Recover a secret the target appends to attacker input, one byte at a time, from ciphertext alone | Cryptopals Set 2 Ch.12 — reproduced live in the notebook |
+| **4. Block malleability / cut-and-paste** | No integrity, active splice | Splice a chosen ciphertext block into a legitimate token to forge a privileged role | Cryptopals Set 2 Ch.13 — reproduced live in the notebook |
 
-## Standards
+A fifth data point isn't a specific exploit but shows the scale of the problem: a 2013 study of 11,748 Android apps found "do not use ECB" was the single most-violated cryptographic rule, affecting 7,656 apps — most of them because a library silently defaulted to ECB when the developer under-specified the cipher.
 
-This project follows two standing skills, shared across all of the author's documentation projects (not local to this repository):
+## See it happen
 
-- **doc-writing** (`~/.claude/skills/doc-writing/SKILL.md`) — voice, structure, the five approved writing frameworks, and accuracy/citation discipline. ECB mode's content fits the **Threat → Attack Mechanics → Defensive Control → Residual Risk** framework.
-- **doc-review** (`~/.claude/skills/doc-review/SKILL.md`) — targeted verification vs. fresh review, mandatory review dimensions, gap analysis, and closure requirements.
+![Four panels under one shared AES-128 key: a structured bitmap, then its AES-ECB, AES-CBC, and AES-GCM ciphertexts rebuilt as images. Only the ECB panel preserves the bitmap's outline; CBC and GCM are uniform noise.](notebooks/ecb_pattern_leakage.png)
 
-See [`AGENTS.md`](AGENTS.md) for the enforcement pointer.
+The second panel isn't a rendering artifact — it's the actual AES-ECB ciphertext of the image on the left. CBC (random IV) and GCM (AEAD), encrypted under the same key, produce uniform noise from the same plaintext.
 
-## Structure
+## Run it yourself
 
-- `docs/ecb-mode-unsafe.md` — the primary written reference.
-- `src/ecb_lab/` — the tested implementation: `crypto_helpers.py` (AES-ECB/CBC/GCM), `detection.py` (black-box and white-box ECB detection), `pattern_leakage.py`, `oracle_attack.py`, `cut_and_paste.py` — one module per attack vector.
-- `tests/` — pytest coverage for every module above; run with `pytest` (block size, key, and cipher IO are exercised against real AES, not mocked).
-- `notebooks/ecb_mode_deep_dive.ipynb` — runs every vector end-to-end with real, captured output; the companion notebook to `docs/ecb-mode-unsafe.md`.
-- `reviews/` — review records, the durable content-decision register (`CONTENT_DECISIONS.yml`), and the review template. Bootstrapped from the `doc-review` skill's assets.
-- `scripts/` — review tooling (`capture_review_state.py`, `verify_content_decisions.py`), copied from the `doc-review` skill's assets. Both are generic and depend only on `git` and this repository's `reviews/CONTENT_DECISIONS.yml`.
+[`notebooks/ecb_mode_deep_dive.ipynb`](notebooks/ecb_mode_deep_dive.ipynb) runs every vector above against a real AES-ECB oracle, with real captured output — nothing in it is a claim without code behind it. Open it in [Google Colab](https://colab.research.google.com/) and run all cells top to bottom; the setup cell detects Colab, clones this repository, and installs everything it needs automatically. No local Python setup required.
 
-## Running it
+## Detecting ECB mode
 
-```bash
-pip install -r requirements.txt
-pytest                                    # 22 tests, all four vectors + detection + crypto helpers
-jupyter nbconvert --execute --to notebook --inplace notebooks/ecb_mode_deep_dive.ipynb
-```
+Two independent checks — full detail in the write-up:
+
+- **Black-box** (ciphertext or oracle access only): split ciphertext into fixed-size blocks and look for duplicates. No key, no source access.
+- **White-box** (source/config review): ECB is frequently a library default, not a deliberate choice. Grep for `MODE_ECB`, `modes.ECB(`, `/ECB/`, or an unqualified `Cipher.getInstance("AES")` — the single highest-yield check, responsible for three of the real-world instances cited in the write-up.
+
+## Repository structure
+
+- [`docs/ecb-mode-unsafe.md`](docs/ecb-mode-unsafe.md) — the full write-up: mechanism, formal proof, all four vectors, real-world evidence, detection, and the defensive fix.
+- [`notebooks/ecb_mode_deep_dive.ipynb`](notebooks/ecb_mode_deep_dive.ipynb) — the runnable companion notebook.
+- [`src/ecb_lab/`](src/ecb_lab/) — the tested implementation backing Vectors 1, 3, and 4 (Vector 2's equality-inference demo lives directly in the notebook).
+- [`tests/`](tests/) — pytest coverage for every module above, exercised against real AES.

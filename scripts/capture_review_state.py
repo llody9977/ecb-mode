@@ -46,6 +46,7 @@ def resolve_scope(root: Path, requested: list[str]) -> list[Path]:
     if not requested:
         return sorted(available)
 
+    available_set = set(available)
     selected: set[Path] = set()
     for raw_scope in requested:
         candidate = (root / raw_scope).resolve()
@@ -59,6 +60,11 @@ def resolve_scope(root: Path, requested: list[str]) -> list[Path]:
             continue
         if candidate.is_dir():
             selected.update(path for path in available if candidate in path.parents)
+            continue
+        if candidate in available_set:
+            # Tracked in the index but deleted from the working tree — still a
+            # legitimate scope target; capture() records it with status "deleted".
+            selected.add(candidate)
             continue
         raise ValueError(f"scope does not exist: {raw_scope}")
 
@@ -79,6 +85,16 @@ def capture(root: Path, files: list[Path], requested: list[str]) -> dict[str, ob
 
     for path in files:
         relative = path.relative_to(root).as_posix()
+        if not path.is_file():
+            # Tracked in the git index but removed from the working tree (an
+            # unstaged `git rm` / manual delete). Record the deletion itself as
+            # part of the frozen baseline instead of aborting the whole capture.
+            entries.append({"path": relative, "status": "deleted"})
+            aggregate.update(relative.encode("utf-8"))
+            aggregate.update(b"\0")
+            aggregate.update(b"<deleted>")
+            aggregate.update(b"\0")
+            continue
         digest = file_digest(path)
         size = path.stat().st_size
         entries.append({"path": relative, "sha256": digest, "bytes": size})

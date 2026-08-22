@@ -20,7 +20,7 @@
       },
       "originating_feedback": "User asked for a comprehensive, non-theoretical treatment of ECB mode weaknesses, and explicitly instructed: independently design a structure first, then compare it against the pre-existing reference project at ~/Documents/ecb-mode, determine which concept is better, and port the winning concept (not the file content) across.",
       "decision": "Structured the document and codebase around ECB's two actual root causes (determinism; no integrity/chaining) collapsing into four vectors (pattern/structure leakage, equality/frequency inference, chosen-plaintext oracle recovery, block malleability/tampering) instead of the author's own initial 6-item vector list, which had genuine redundancy (block replay and dictionary/codebook attacks are restatements of the same two root causes, not independent vectors). Detection was kept as its own top-level section rather than folded into residual risk, because the reference project only implemented the black-box (ciphertext block-repeat) half of detection and had no white-box/library-default-footgun coverage at all.",
-      "rationale": "The reference project's 2-cause/4-vector taxonomy is more rigorous and avoids the redundancy the writing standard's narrative-drift and single-subject-focus rules warn against; it was independently verified by reading its source, running its full test suite (49/49 passing, including live notebook execution), and separately re-checking its cited real-world cases. One of its cited statistics (a CCS 2015 hospital-data figure) was found to conflate two different sub-results from the same paper and was corrected before use here, rather than being ported as-is. The detection gap (no white-box/library-default coverage, no CCS 2013 Android-misuse prevalence study, no named real-app instances of the Java Cipher.getInstance ECB-default footgun) was the author's own independent research contribution and was kept as a first-class section rather than merged into an existing one.",
+      "rationale": "The reference project's 2-cause/4-vector taxonomy is more rigorous and avoids the redundancy the writing standard's narrative-drift rule warns against. Verified by reading its source, running its 49/49-passing test suite (incl. live notebook execution), and re-checking its real-world cases -- one cited CCS 2015 statistic was found conflating two sub-results and was corrected before use. Detection was kept first-class because the reference lacked white-box/library-default coverage entirely (no CCS 2013 prevalence study, no named ECB-default app instances) -- this project's own research contribution.",
       "authoritative_sources": [
         {
           "title": "NIST SP 800-38A, Recommendation for Block Cipher Modes of Operation",
@@ -39,20 +39,132 @@
         }
       ],
       "verification_methods": [
-        "Ran the reference project's full pytest suite (49 passed) including dynamic notebook execution before relying on any of its code as evidence of a working technique.",
-        "Independently re-fetched and cross-checked each of the reference project's cited real-world sources (Zoom/CVE-2020-11500, Microsoft O365 OME/WithSecure, Naveed-Kamara-Wright CCS 2015) against primary or first-party pages rather than trusting the citation as given.",
-        "Ran this project's own pytest suite (19 passed) and executed notebooks/ecb_mode_deep_dive.ipynb end-to-end via nbclient, capturing real output for every vector before writing the corresponding documentation claims."
+        "Ran the reference project's pytest suite (49/49) incl. dynamic notebook execution before trusting its code as evidence.",
+        "Re-fetched and cross-checked each cited real-world source (Zoom/CVE-2020-11500, MS O365 OME/WithSecure, Naveed-Kamara-Wright CCS 2015) against primary/first-party pages.",
+        "Ran this project's own pytest suite (19 passed) and executed the notebook end-to-end via nbclient, capturing real output for every vector before writing doc claims."
       ],
       "approved_outcome": "docs/ecb-mode-unsafe.md uses the 2-root-cause/4-vector taxonomy with a standalone 'Detecting ECB mode usage' section covering both black-box and white-box detection; src/ecb_lab/ implements one module per vector plus detection.py as a first-class module, not a helper buried in the oracle-attack code.",
       "invalidation_conditions": [
         "A future vector is identified that is not a consequence of determinism or the lack of integrity/chaining, which would require a third root cause.",
         "The detection section is found to be redundant with residual-risk content after further review, warranting a merge."
       ],
-      "related_decisions": [],
+      "related_decisions": [
+        "CD-0002"
+      ],
       "supersedes": [],
       "superseded_by": null,
       "originated_on": "2026-08-18",
       "last_reviewed_on": "2026-08-18"
+    },
+    {
+      "id": "CD-0002",
+      "title": "Correct the SP 800-38A scope-note claim and refine the CCS 2015 mortality-risk statistic against primary sources",
+      "status": "accepted",
+      "implementation_state": "implemented",
+      "scope": {
+        "files": [
+          "docs/ecb-mode-unsafe.md"
+        ],
+        "concepts": [
+          "SP 800-38A scope note",
+          "ECB approved use / key wrapping exception",
+          "CCS 2015 hospital mortality risk statistic",
+          "real-world evidence table accuracy"
+        ]
+      },
+      "originating_feedback": "A fresh whole-project review (2026-08-21) checked every standards-sensitive and time-sensitive claim touched by an in-progress uncommitted diff against current primary sources, per the doc-review skill's mandatory 'Verify evidence' pass.",
+      "decision": "Two claims were corrected. (1) The scope note previously asserted 'NIST approves ECB for a narrow case: a single block of unpredictable data, such as key wrapping' -- this is now stated as an author-derived logical consequence of ECB's determinism property (no second ciphertext block exists to leak an equality comparison through), with an explicit note that SP 800-38A itself does not carve out this exception. (2) The CCS 2015 real-world evidence row previously read 'recovered patient mortality risk for at least 99% of the 200 largest hospitals' -- now reads '100% of patients in at least 99% of the 200 largest hospitals', restoring the patient-percentage qualifier the paper actually states.",
+      "rationale": "NIST SP 800-38A Section 6.1 (legacy PDF) states only: 'under a given key, any given plaintext block always gets encrypted to the same ciphertext block. If this property is undesirable in a particular application, the ECB mode should not be used' -- zero occurrences of 'key wrap' or 'single block' anywhere, so the prior key-wrapping-exception claim was unsupported. Corroborated by NIST's 2022 proposal to revise SP 800-38A, which would 'limit the approval of ECB to instances that are specifically allowed by other NIST standards or guidance' -- confirming that restriction doesn't exist in the current standard yet. Naveed/Kamara/Wright CCS 2015 (author PDF) states: 'It recovered Mortality Risk and whether the patient died for 100% of the patients for 99% and 100% of the hospitals respectively' -- confirming the corrected wording and superseding CD-0001's imprecise figure.",
+      "authoritative_sources": [
+        {
+          "title": "NIST SP 800-38A, Recommendation for Block Cipher Modes of Operation (legacy PDF, Section 6.1)",
+          "url": "https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-38a.pdf",
+          "supports": "ECB's definition and determinism property carry no stated single-block/key-wrapping exception"
+        },
+        {
+          "title": "NIST, Proposal to Revise SP 800-38A",
+          "url": "https://csrc.nist.gov/news/2022/proposal-to-revise-sp-800-38a",
+          "supports": "corroborates that the current standard does not yet restrict ECB approval to specific allowed instances -- that restriction is proposed, not existing"
+        },
+        {
+          "title": "Naveed, Kamara & Wright, Inference Attacks on Property-Preserving Encrypted Databases, ACM CCS 2015 (author PDF)",
+          "url": "https://cs.brown.edu/people/seny/pubs/edb.pdf",
+          "supports": "exact mortality-risk recovery statistic: 100% of patients, 99% of the 200 largest hospitals"
+        }
+      ],
+      "verification_methods": [
+        "Fetched the NIST SP 800-38A legacy PDF, grepped for 'key wrap' and 'single block' -- zero matches.",
+        "Fetched NIST's 2022 proposal-to-revise page -- confirms the restriction is a future change, not current text.",
+        "Fetched the Naveed/Kamara/Wright CCS 2015 paper PDF directly and located the Section 9.1 results sentence verbatim, not a secondary summary."
+      ],
+      "approved_outcome": "docs/ecb-mode-unsafe.md's scope note attributes the single-block/never-repeated exception to logical inference from ECB's own determinism property, not to NIST, and explicitly states SP 800-38A does not carve it out; the CCS 2015 real-world evidence row states the mortality-risk figure as '100% of patients in at least 99% of the 200 largest hospitals', matching the paper's own wording.",
+      "invalidation_conditions": [
+        "NIST finalizes its proposed revision to SP 800-38A and it takes effect, at which point the standard itself would carry a single-instance ECB restriction and the scope note's framing should be updated to cite it directly.",
+        "A future reviewer locates paper text or an erratum showing the CCS 2015 99%/100% figures differ from what Section 9.1 currently states."
+      ],
+      "related_decisions": [
+        "CD-0001"
+      ],
+      "supersedes": [],
+      "superseded_by": null,
+      "originated_on": "2026-08-21",
+      "last_reviewed_on": "2026-08-21"
+    },
+    {
+      "id": "CD-0003",
+      "title": "Add four Mermaid diagrams to docs/ecb-mode-unsafe.md; require visuals to be verified and self-sufficient content",
+      "status": "accepted",
+      "implementation_state": "implemented",
+      "scope": {
+        "files": [
+          "docs/ecb-mode-unsafe.md",
+          "README.md",
+          "notebooks/ecb_mode_deep_dive.ipynb",
+          "notebooks/ecb_pattern_leakage.png"
+        ],
+        "concepts": [
+          "visual representation",
+          "Mermaid diagrams",
+          "figure self-sufficiency",
+          "diagram provenance",
+          "attack-visual defensibility"
+        ]
+      },
+      "originating_feedback": "User asked whether the doc standards encourage purposeful (non-decorative) visuals, and whether doc-review holds content inside images to the same accuracy standard as prose; then instructed to close any gaps in the skills/rules and run doc-review to find image-representation applicability in ecb-mode. The scoped pass flagged Vectors 3 and 4 as required visual gaps and the existing PNG as not self-sufficient when detached.",
+      "decision": "Added four ```mermaid diagrams to docs/ecb-mode-unsafe.md, all rendered live (searchable source, native GitHub rendering) rather than as binary images: (1) a three-mode block-flow diagram in 'The mechanism' showing why only ECB's equal-in/equal-out path leaks; (2) a taxonomy tree in 'Comprehensive attack surface' fixing determinism -> Vectors 1-3 and no-integrity -> Vector 4, with no third root cause; (3) a REQUIRED byte-at-a-time block-alignment diagram in Vector 3; (4) a REQUIRED cut-and-paste block-splice diagram in Vector 4. Each attack diagram carries an inline scope line naming the local demonstration target. Regenerated notebooks/ecb_pattern_leakage.png from its notebook generator with a baked-in suptitle stating 'same 192x192 bitmap, same AES-128 key - only the mode differs', so the figure states its own comparison axis when detached. Rewrote the figure alt text in README.md and docs to carry the conclusion (only ECB preserves structure) rather than merely naming the four panels.",
+      "rationale": "Vectors 3 and 4 are block-alignment mechanics that dense prose forces the reader to simulate mentally; a block-layout diagram is the form that materially improves comprehension, so they were classified required gaps, not optional enrichment. Mermaid was chosen over inline SVG because GitHub sanitizes raw <svg> out of markdown (it would not render where these docs live), while Mermaid renders natively and keeps every label as searchable source text. The diagrams depict exactly what the tested code does: Vector 3's filler counts (15 for byte 0, 14 for byte 1) match oracle_attack.recover_secret's pad_len = (-byte_index-1) % 16; Vector 4's block contents (email=xxxxxxxxxx | admin+padding ; email=aaaaaaaaaa | a&uid=1000&role= | user+padding) match cut_and_paste.forge_admin_token byte for byte. The PNG qualifier was baked into the image itself, not left only in the caption, so the detached-artifact requirement is met even if the file is grabbed alone.",
+      "authoritative_sources": [
+        {
+          "title": "GitHub: creating diagrams with Mermaid in Markdown",
+          "url": "https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams",
+          "supports": "GitHub renders fenced mermaid code blocks natively, and sanitizes raw inline <svg> out of Markdown -- the reason the diagrams are Mermaid, not inline SVG"
+        },
+        {
+          "title": "Mermaid flowchart syntax reference",
+          "url": "https://mermaid.js.org/syntax/flowchart.html",
+          "supports": "flowchart subgraph, classDef, and dashed-link syntax used by all four diagrams; verified to parse and render error-free"
+        }
+      ],
+      "verification_methods": [
+        "Read oracle_attack.py and cut_and_paste.py and derived the exact block byte layouts by hand; diagram labels match (byte-0 filler 15, byte-1 filler 14; base email_len 11 aligns role= to a block boundary; donor admin block is split_blocks(donor_token)[1]).",
+        "Rendered all four diagrams in a real Mermaid engine (mermaid.min.js) via the in-app browser: 4 pre.mermaid blocks produced 4 SVGs, 0 error/syntax nodes; diagrams 1-2 confirmed visually with correct color coding, diagrams 3-4 confirmed by extracting rendered node labels and edge labels from the SVG DOM.",
+        "Regenerated the PNG by executing the notebook headlessly (python3 -m nbconvert --execute --inplace); confirmed the figure now shows the same-key/AES-128 suptitle and that no stray PNG was written to the repo root.",
+        "Ran pytest (22/22 passed) after the notebook re-execution to confirm the src implementations the diagrams depict are unchanged and green.",
+        "Diagram-to-code provenance rests on the in-repo generators, not external URLs: src/ecb_lab/oracle_attack.py (Vector 3) and src/ecb_lab/cut_and_paste.py (Vector 4) are the durable provenance for the block mechanics; notebooks/ecb_mode_deep_dive.ipynb cell 3 is the generator for the PNG."
+      ],
+      "approved_outcome": "docs/ecb-mode-unsafe.md carries four live Mermaid diagrams whose relationships (determinism -> V1-3, no-integrity -> V4; the ECB-only leakage path; the V3 alignment loop; the V4 splice) are the deliberate, code-accurate structure. The pattern-leakage PNG states its own comparison axis internally. Figure alt text in both README.md and docs states the conclusion, not just the panel names.",
+      "invalidation_conditions": [
+        "The tested implementations change the block mechanics a diagram depicts (e.g. oracle_attack's alignment formula or cut_and_paste's field layout), at which point the corresponding diagram must be re-derived and re-verified against the new code, not merely left in place.",
+        "GitHub changes whether it renders fenced mermaid blocks, which would require re-choosing the diagram medium (e.g. rendered SVG/PNG committed with its generator).",
+        "A future reviewer establishes that one of the diagrams overstates or misstates what the code proves, under the same cross-format accuracy rule that applies to prose."
+      ],
+      "related_decisions": [
+        "CD-0001"
+      ],
+      "supersedes": [],
+      "superseded_by": null,
+      "originated_on": "2026-08-22",
+      "last_reviewed_on": "2026-08-22"
     }
   ]
 }
