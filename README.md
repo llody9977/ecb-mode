@@ -5,7 +5,7 @@
 ![Secret scan](https://github.com/llody9977/ecb-mode/actions/workflows/gitleaks.yml/badge.svg)
 ![License](https://img.shields.io/github/license/llody9977/ecb-mode)
 
-Electronic Codebook (ECB) encrypts every block independently under the same key, with no randomization and no dependency between blocks. That determinism — plus no integrity and no chaining — breaks confidentiality outright: ECB fails the standard IND-CPA definition with adversary advantage 1, regardless of key size.
+Electronic Codebook (ECB) encrypts every block independently under the same key, with no randomization and no dependency between blocks. That determinism alone breaks confidentiality outright: ECB fails the standard IND-CPA definition with adversary advantage 1, regardless of key size. A second property — no integrity, no chaining — leaves its ciphertext malleable, which is what enables tampering.
 
 **[▶ Open the interactive site →](https://llody9977.github.io/ecb-mode/)** — every attack below runs live in your browser against real AES.
 

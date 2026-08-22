@@ -12,7 +12,7 @@
 <header class="hero">
   <div class="eyebrow">Cryptography / Failure analysis</div>
   <h1>AES-ECB mode is unsafe</h1>
-  <p class="lede">Electronic Codebook (ECB) encrypts every block independently under the same key, with no randomization and no dependency between blocks. That determinism — plus a second property, no integrity and no chaining — is enough to break confidentiality outright. ECB fails the standard IND-CPA definition with adversary advantage 1, regardless of key size.</p>
+  <p class="lede">Electronic Codebook (ECB) encrypts every block independently under the same key, with no randomization and no dependency between blocks. That determinism alone breaks confidentiality outright: ECB fails the standard IND-CPA definition with adversary advantage 1, regardless of key size. A second property — no integrity, no chaining — leaves its ciphertext malleable, which is what enables tampering.</p>
   <p class="muted">Every claim below has a demonstration you can run right here. The crypto is <strong>real AES</strong> via the Web Crypto API — executed locally in your browser, no server calls. <a href="https://github.com/llody9977/ecb-mode">Source &amp; tests on GitHub →</a></p>
 </header>
 
@@ -149,6 +149,7 @@ erin: letmein123</textarea>
     <div class="verdict" id="gcm-verdict"></div>
   </div>
   <p>If AEAD genuinely is not available, CBC or CTR with a fresh random IV per message plus a separately computed MAC (encrypt-then-MAC, checked before decryption) restores confidentiality and integrity — but it is strictly more to get wrong than using an AEAD mode directly.</p>
+  <p>Switching the mode only protects data written from now on. Anything already stored under ECB keeps leaking until it is rewritten: decrypt it with the old ECB key and re-encrypt under the new AEAD scheme with fresh per-message nonces, as a one-time migration. Rotate the key at the same time so the retired ECB key can be destroyed and old ciphertext cannot be revived.</p>
 
   <h2>Real-world evidence</h2>
   <div class="table-wrap">
@@ -158,7 +159,7 @@ erin: letmein123</textarea>
         <tr><td><strong>Adobe, 2013</strong></td><td>~153M password records encrypted (not hashed) in ECB with 3DES (inferred from the 8-byte block size), unsalted. Identical passwords → byte-identical ciphertext; researchers clustered accounts and used the leaked hints to confirm the common values within hours.</td><td>Vector 2</td></tr>
         <tr><td><strong>Zoom, 2020</strong> (<a href="https://nvd.nist.gov/vuln/detail/CVE-2020-11500">CVE-2020-11500</a>)</td><td>Every meeting used one AES-128 key in ECB mode for all audio/video, preserving structure — and it was AES-128, not the AES-256 marketed at the time (<a href="https://citizenlab.ca/2020/04/move-fast-roll-your-own-crypto-a-quick-look-at-the-confidentiality-of-zoom-meetings/">Citizen Lab</a>).</td><td>Vector 1</td></tr>
         <tr><td><strong>MS Office 365 Message Encryption, 2022</strong></td><td>OME encrypted message bodies with AES-ECB; repeated/structured content leaked across messages sharing a key. Microsoft declined to ship a fix (<a href="https://labs.withsecure.com/advisories/microsoft-office-365-message-encryption-insecure-mode-of-operation">WithSecure advisory</a>).</td><td>Vector 1</td></tr>
-        <tr><td><strong>Android apps, 2013</strong></td><td>Of 11,748 Google Play apps using crypto APIs, "do not use ECB" was the single most-violated rule — 7,656 apps, 5,656 of them because the developer specified only <code>AES</code> and the provider defaulted to ECB (<a href="https://dl.acm.org/doi/10.1145/2508859.2516693">Egele et al., ACM CCS 2013</a>).</td><td>Vectors 1–4</td></tr>
+        <tr><td><strong>Android apps, 2013</strong></td><td>Of 11,748 Google Play apps using crypto APIs, "do not use ECB" was the single most-violated rule — 7,656 apps, 5,656 of them because the developer named only a block cipher such as <code>AES</code> and the provider defaulted to ECB (<a href="https://dl.acm.org/doi/10.1145/2508859.2516693">Egele et al., ACM CCS 2013</a>).</td><td>Vectors 1–4</td></tr>
       </tbody>
     </table>
   </div>

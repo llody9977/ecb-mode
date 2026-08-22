@@ -1,4 +1,4 @@
-"""Generate the four hand-authored diagrams for docs/ecb-mode-unsafe.md.
+"""Generate the four hand-authored diagrams embedded in docs/index.html.
 
 The SVGs are theme-aware: theme-dependent colors (card/panel backgrounds, ink and
 muted text, neutral fills, arrows) are CSS variables with a `prefers-color-scheme:
@@ -164,7 +164,7 @@ def d3():
     b.append(text(W / 2, 508, "▼   repeat for each byte", size=12, fill=MUTED, weight="600"))
     b.append(box(W / 2 - 240, 522, 480, 42, "Full secret recovered in ≈ 256 × L queries — the key is never needed",
                  fill=GREEN, stroke="#15803d", tc="#fff", size=13))
-    b.append(text(W / 2, 584, "Scope: run only against a local demonstration oracle (ecb_lab.oracle_attack.make_suffix_oracle), never a third-party service.",
+    b.append(text(W / 2, 584, "Scope: run only against a local demonstration oracle (attacks.mjs makeSuffixOracle), never a third-party service.",
                   size=10.5, fill=MUTED))
     return svg(W, 600, "Vector 3 — chosen-plaintext byte-at-a-time recovery", "".join(b))
 
