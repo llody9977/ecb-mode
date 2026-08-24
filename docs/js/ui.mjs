@@ -5,8 +5,8 @@ import {
   toHex, fromHex, utf8, splitBlocks, BLOCK_SIZE,
 } from "./crypto.mjs";
 import {
-  equalityInference, makeSuffixOracle, recoverSecret,
-  ProfileService, forgeAdminToken, gcmTokenRoundtrip,
+  equalityInference, makeSuffixOracle, recoverSecret, encryptPixels,
+  ProfileService, forgeAdminToken, gcmTokenRoundtrip, forgeUnderBothModes,
 } from "./attacks.mjs";
 
 const $ = (id) => document.getElementById(id);
@@ -44,10 +44,7 @@ async function runImage() {
   const orig = $("img-original"); drawBitmap(orig);
   const rgba = orig.getContext("2d").getImageData(0, 0, orig.width, orig.height).data;
   const key = crypto.getRandomValues(new Uint8Array(16));
-  const len = rgba.length;
-  const ecb = (await aesEcbEncrypt(key, new Uint8Array(rgba), true)).slice(0, len);
-  const cbc = (await aesCbcEncrypt(key, new Uint8Array(rgba))).ciphertext.slice(0, len);
-  const gcm = (await aesGcmEncrypt(key, new Uint8Array(rgba))).ciphertext.slice(0, len);
+  const { ecb, cbc, gcm } = await encryptPixels(new Uint8Array(rgba), key);
   // force alpha opaque so the structure is visible, not modulated by random alpha
   for (const buf of [ecb, cbc, gcm]) for (let i = 3; i < buf.length; i += 4) buf[i] = 255;
   putBytes($("img-ecb"), ecb); putBytes($("img-cbc"), cbc); putBytes($("img-gcm"), gcm);
@@ -173,12 +170,30 @@ async function forge() {
 }
 
 // ---------- Defensive: GCM ----------
+// Run BOTH halves of the contrast: the Vector 4 splice (the attack the page claims
+// AEAD closes) and a single-bit flip (the smallest possible alteration).
 async function runGcm() {
-  const { tamperRejected, decryptedProfile } = await gcmTokenRoundtrip($("email-in").value);
-  $("gcm-out").innerHTML = `Clean decrypt → <code>${esc(decryptedProfile)}</code>`;
-  verdict($("gcm-verdict"), "good",
-    tamperRejected ? "<strong>Tamper rejected.</strong> Flipping one ciphertext bit made GCM's authentication tag fail — decryption raised before any role could be read. This is what closes Vector 4."
-                   : "Unexpected: tamper was not rejected.");
+  const btn = $("gcm-run"); btn.disabled = true;
+  try {
+    const { tamperRejected, decryptedProfile } = await gcmTokenRoundtrip($("email-in").value);
+    // Every line below is a value this run produced — including the ECB one.
+    const { ecbForgedRole, gcmForgedRole, gcmHonestRole } = await forgeUnderBothModes();
+    const spliceRejected = gcmForgedRole === null;
+    const role = (r) => `<code>role=${esc(String(r))}</code>`;
+    $("gcm-out").innerHTML =
+      `<div class="gcm-line"><span class="tag bad">ECB</span><span>Same splice → server reads ${role(ecbForgedRole)}. Forgery accepted.</span></div>` +
+      `<div class="gcm-line"><span class="tag good">GCM</span><span>Same splice → ${spliceRejected
+          ? "tag verification failed, so no plaintext was returned and no role was ever parsed"
+          : `unexpectedly returned ${role(gcmForgedRole)}`}.</span></div>` +
+      `<div class="gcm-line"><span class="tag good">GCM</span><span>One ciphertext bit flipped → ${tamperRejected ? "rejected the same way" : "<strong>not</strong> rejected (unexpected)"}.</span></div>` +
+      `<div class="gcm-line"><span class="tag good">GCM</span><span>Untouched token → ${role(gcmHonestRole)}, decrypting cleanly to <code>${esc(decryptedProfile)}</code> — the service itself still works.</span></div>`;
+    verdict($("gcm-verdict"), spliceRejected && tamperRejected && ecbForgedRole === "admin" ? "good" : "bad",
+      spliceRejected && tamperRejected && ecbForgedRole === "admin"
+        ? "<strong>Vector 4 closed.</strong> The identical cut-and-paste that produced <code>role=admin</code> on the line above returns nothing here: GCM verifies the tag before returning any plaintext, so the spliced token never reaches the role parser. The honest token still works, so this is the tag rejecting the forgery — not the service breaking."
+        : "Unexpected: one of the three outcomes above did not hold. Re-run, and check the console.");
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ---------- wire up ----------

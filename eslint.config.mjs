@@ -11,7 +11,7 @@ export default [
         // browser + node WebCrypto surface used by the demos and tests
         globalThis: "readonly", crypto: "readonly", TextEncoder: "readonly", TextDecoder: "readonly",
         document: "readonly", window: "readonly", addEventListener: "readonly", setTimeout: "readonly",
-        ImageData: "readonly", console: "readonly",
+        ImageData: "readonly", console: "readonly", URL: "readonly",
       },
     },
     rules: {

@@ -1,0 +1,112 @@
+{
+  "last_review": {
+    "branch": "main",
+    "commit": "403a2566a33f27e0710649ebe4e7b0e8f72c74f7",
+    "date": "2026-08-24",
+    "effort": "high",
+    "model": "claude-opus-5"
+  },
+  "passes": {
+    "adversarial-claims": {
+      "effort": "high",
+      "input_fingerprint_sha256": "02d1339b835951904cd4cb19acdf30300f9634e1f4952884eafcf3c772279218",
+      "model": "claude-opus-5",
+      "verdict": "findings",
+      "verified_on": "2026-08-24",
+      "version": 1
+    },
+    "argument-integrity": {
+      "effort": "high",
+      "evidence": {
+        "dismissals": [
+          "Figure 1 (modes) carries no educational-scope footer while the other three do \u2014 it depicts a mode comparison, not an attack technique, and shows no targeting capability, so it is defensible read alone.",
+          "The claim that the BouncyCastle provider is behind most of the Android findings carries no inline citation \u2014 it is supported by the Egele et al. row it points to (5,656 of 7,656), which is linked in that table.",
+          "The Vector 2 demo clusters on full-record ciphertext equality rather than demonstrating frequency analysis \u2014 the demo claims only clustering, and frequency recovery is attributed to Naveed et al. in prose. Optional extension, not a gap.",
+          "Diagram 1's title \"Why only ECB leaks structure\" is unqualified, but the three compared modes are drawn in the same frame, so the scope is visible without the page.",
+          "esc() escapes only & < > \u2014 every interpolation reaches a text node or a fixed-palette attribute, so no injection path exists in the demos."
+        ],
+        "gap": "none",
+        "thesis_stated": "AES-ECB is unsafe: its determinism alone breaks confidentiality outright, failing IND-CPA with adversary advantage 1 regardless of key size, and its lack of authentication turns that same determinism into forgery.",
+        "thesis_supported": "AES-ECB is unsafe: SP 800-38A documents the equal-block property and says not to use ECB where it is undesirable, determinism makes ECB fail IND-CPA with advantage 1 at any message length once the adversary has the CPA oracle, and four documented vectors plus four real-world cases follow from determinism and the missing authentication."
+      },
+      "input_fingerprint_sha256": "02d1339b835951904cd4cb19acdf30300f9634e1f4952884eafcf3c772279218",
+      "model": "claude-opus-5",
+      "verdict": "findings",
+      "verified_on": "2026-08-24",
+      "version": 2
+    },
+    "cross-format": {
+      "effort": "high",
+      "input_fingerprint_sha256": "480bc3d59435f9304d74e2baf663fb31da32727d0183458beb09dffb3b2ee20e",
+      "model": "claude-opus-5",
+      "verdict": "findings",
+      "verified_on": "2026-08-24",
+      "version": 1
+    },
+    "cross-page": {
+      "effort": "high",
+      "input_fingerprint_sha256": "b3f20bd4fff774ca85b446b033985af9dbe82479e74f1873f8bcf75495ce3ceb",
+      "model": "claude-opus-5",
+      "verdict": "findings",
+      "verified_on": "2026-08-24",
+      "version": 1
+    },
+    "decision-reconciliation": {
+      "effort": "high",
+      "input_fingerprint_sha256": "fc5ffd5278a1662214993d981ef22a5d008f18d768c30019feff5aef935dd055",
+      "model": "claude-opus-5",
+      "verdict": "clean",
+      "verified_on": "2026-08-24",
+      "version": 1
+    },
+    "evidence-authority": {
+      "effort": "high",
+      "input_fingerprint_sha256": "399fb63dd94b057bccc8eee21c67a0cffaeb5c4e91b57b712cf62723f2ed1cc8",
+      "model": "claude-opus-5",
+      "verdict": "findings",
+      "verified_on": "2026-08-24",
+      "version": 1
+    },
+    "executable-demonstration": {
+      "effort": "high",
+      "input_fingerprint_sha256": "6fa6ed50322762bd4b34490502ce10e29ad7773b40dacb5cf971665fcd87612e",
+      "model": "claude-opus-5",
+      "verdict": "findings",
+      "verified_on": "2026-08-24",
+      "version": 2
+    },
+    "factual-correctness": {
+      "effort": "high",
+      "input_fingerprint_sha256": "8c91f77ac8a8f48735750f7dac82739b0f91107e91dc790a7063b5618358fae6",
+      "model": "claude-opus-5",
+      "verdict": "findings",
+      "verified_on": "2026-08-24",
+      "version": 1
+    },
+    "terminology-taxonomy": {
+      "effort": "high",
+      "input_fingerprint_sha256": "02d1339b835951904cd4cb19acdf30300f9634e1f4952884eafcf3c772279218",
+      "model": "claude-opus-5",
+      "verdict": "clean",
+      "verified_on": "2026-08-24",
+      "version": 1
+    },
+    "topic-completeness": {
+      "effort": "high",
+      "input_fingerprint_sha256": "02d1339b835951904cd4cb19acdf30300f9634e1f4952884eafcf3c772279218",
+      "model": "claude-opus-5",
+      "verdict": "clean",
+      "verified_on": "2026-08-24",
+      "version": 1
+    },
+    "visual-content": {
+      "effort": "high",
+      "input_fingerprint_sha256": "b882c67738a77cf063e4efacc2b4e0af5edba1e9bd6ece2358526b41b19c7138",
+      "model": "claude-opus-5",
+      "verdict": "findings",
+      "verified_on": "2026-08-24",
+      "version": 2
+    }
+  },
+  "schema_version": 1
+}

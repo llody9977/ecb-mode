@@ -6,7 +6,8 @@
 // any of this at a system you do not own or are not authorized to test.
 
 import {
-  BLOCK_SIZE, aesEcbEncrypt, aesEcbDecrypt, aesGcmEncrypt, aesGcmDecrypt,
+  BLOCK_SIZE, GCM_NONCE_SIZE, aesEcbEncrypt, aesEcbDecrypt, aesCbcEncrypt,
+  aesGcmEncrypt, aesGcmDecrypt,
   randomKey, concat, blockAt, bytesEqual, toHex, utf8, latin1Encode, latin1Decode,
 } from "./crypto.mjs";
 
@@ -85,59 +86,123 @@ export async function recoverSecret(oracle, { onStep } = {}) {
 // Vector 4 — block malleability / cut-and-paste privilege escalation.
 // Cryptopals Set 2 Challenge 13.
 // ---------------------------------------------------------------------------
+const PROFILE_FOR = (email) => `email=${String(email).replace(/[&=]/g, "")}&uid=1000&role=user`;
+
+function roleFromProfile(text) {
+  const fields = {};
+  for (const pair of text.split("&")) {
+    const j = pair.indexOf("=");
+    if (j >= 0) fields[pair.slice(0, j)] = pair.slice(j + 1);
+  }
+  return fields.role ?? null;
+}
+
 export class ProfileService {
   constructor(key = randomKey()) { this.key = key; }
 
+  // A token is opaque bytes to the caller. ECB carries no header, so the
+  // ciphertext starts at offset 0.
+  static headerSize = 0;
+
   async issueToken(email) {
-    const sanitized = String(email).replace(/[&=]/g, "");
-    const profile = `email=${sanitized}&uid=1000&role=user`;
-    return aesEcbEncrypt(this.key, latin1Encode(profile));
+    return aesEcbEncrypt(this.key, latin1Encode(PROFILE_FOR(email)));
   }
 
   async roleForToken(token) {
     let plaintext;
     try { plaintext = await aesEcbDecrypt(this.key, token); } catch { return null; }
-    const fields = {};
-    for (const pair of latin1Decode(plaintext).split("&")) {
-      const j = pair.indexOf("=");
-      if (j >= 0) fields[pair.slice(0, j)] = pair.slice(j + 1);
-    }
-    return fields.role ?? null;
+    return roleFromProfile(latin1Decode(plaintext));
+  }
+}
+
+// The same profile service under AES-GCM. Identical public interface and identical
+// token layout apart from the 12-byte nonce header, so the cut-and-paste forgery
+// below can be pointed at either one and the mode is the only thing that differs.
+export class GcmProfileService {
+  constructor(key = randomKey()) { this.key = key; }
+
+  static headerSize = GCM_NONCE_SIZE;
+
+  async issueToken(email) {
+    const { nonce, ciphertext } = await aesGcmEncrypt(this.key, latin1Encode(PROFILE_FOR(email)));
+    return concat(nonce, ciphertext); // nonce ‖ ciphertext ‖ tag
+  }
+
+  async roleForToken(token) {
+    const nonce = token.slice(0, GCM_NONCE_SIZE);
+    const body = token.slice(GCM_NONCE_SIZE);
+    let plaintext;
+    // The tag is verified before any plaintext is returned, so a token that was
+    // spliced or otherwise altered never reaches roleFromProfile at all.
+    try { plaintext = await aesGcmDecrypt(this.key, nonce, body); } catch { return null; }
+    return roleFromProfile(latin1Decode(plaintext));
   }
 }
 
 // Splice a legitimate token into one that decrypts with role=admin, using only
 // the public issueToken() interface — no access to the key.
+//
+// The service declares its own cleartext header size (0 for ECB, 12 for the GCM
+// nonce) so the block surgery lands on the ciphertext either way. It is read from
+// the service rather than passed in deliberately: a caller who omitted the
+// argument would still produce a token GCM rejects, so the ECB/GCM comparison
+// would pass while demonstrating something weaker — a mangled nonce breaking
+// decryption, rather than the tag catching a splice. Run this against
+// ProfileService and GcmProfileService to see the same attack succeed and then
+// fail with nothing but the mode changed.
 export async function forgeAdminToken(service) {
+  const headerSize = service.constructor.headerSize ?? 0;
   // "email=" (6) + 10-byte local part pushes an "admin"+padding block onto its
   // own 16-byte boundary, isolated as ciphertext block 1.
   const padByte = BLOCK_SIZE - "admin".length; // 11
   const adminBlockPlain = concat(utf8("admin"), new Uint8Array(padByte).fill(padByte));
-  const donor = await service.issueToken("x".repeat(10) + latin1Decode(adminBlockPlain));
-  const adminBlock = blockAt(donor, 1);
+  const donorToken = await service.issueToken("x".repeat(10) + latin1Decode(adminBlockPlain));
+  const adminBlock = blockAt(donorToken.slice(headerSize), 1);
 
   // "email=" (6) + email + "&uid=1000&role=" (15) must land on a block boundary so
   // the trailing "user"+padding block is isolated and can be dropped.
-  const prefixLen = "email=".length + "&uid=1000&role=".length; // 21
-  const emailLen = ((-prefixLen) % BLOCK_SIZE + BLOCK_SIZE) % BLOCK_SIZE || BLOCK_SIZE; // 11
-  const base = await service.issueToken("a".repeat(emailLen));
-  const baseBlocks = base.slice(0, base.length - BLOCK_SIZE); // drop trailing "user"+padding
-  return concat(baseBlocks, adminBlock);
+  const fieldLen = "email=".length + "&uid=1000&role=".length; // 21
+  const emailLen = ((-fieldLen) % BLOCK_SIZE + BLOCK_SIZE) % BLOCK_SIZE || BLOCK_SIZE; // 11
+  const baseToken = await service.issueToken("a".repeat(emailLen));
+  const header = baseToken.slice(0, headerSize);
+  const base = baseToken.slice(headerSize);
+  const kept = base.slice(0, base.length - BLOCK_SIZE); // drop trailing "user"+padding
+  return concat(header, kept, adminBlock);
 }
 
 // ---------------------------------------------------------------------------
-// Defensive control — the same token scheme under AES-GCM. A one-byte tamper
-// fails the authentication tag before any role is read.
+// Defensive control — the same token scheme under AES-GCM.
+//
+// Two separate results, because they prove different things. The bit flip shows
+// the tag catches the smallest possible alteration; the splice shows it catches
+// the exact Vector 4 attack, run by the same forgeAdminToken() against the same
+// service interface. Only the splice closes Vector 4 — a bit flip does not
+// demonstrate that, since Vector 4 never flips a bit.
 // ---------------------------------------------------------------------------
 export async function gcmTokenRoundtrip(email, key = randomKey()) {
-  const profile = `email=${String(email).replace(/[&=]/g, "")}&uid=1000&role=user`;
-  const { nonce, ciphertext } = await aesGcmEncrypt(key, latin1Encode(profile));
+  const { nonce, ciphertext } = await aesGcmEncrypt(key, latin1Encode(PROFILE_FOR(email)));
   const tampered = Uint8Array.from(ciphertext);
   tampered[0] ^= 1; // flip one bit
   let tamperRejected = false;
   try { await aesGcmDecrypt(key, nonce, tampered); } catch { tamperRejected = true; }
   const clean = latin1Decode(await aesGcmDecrypt(key, nonce, ciphertext));
   return { tamperRejected, decryptedProfile: clean };
+}
+
+// Run the Vector 4 cut-and-paste against both services and return both outcomes.
+//
+// The ECB half is executed rather than asserted. Reporting a remembered "ECB gives
+// role=admin" beside a computed GCM result would put an assertion and a measurement
+// side by side as though both were measurements — which is the failure this whole
+// demonstration exists to correct.
+export async function forgeUnderBothModes(ecbKey = randomKey(), gcmKey = randomKey()) {
+  const ecb = new ProfileService(ecbKey);
+  const gcm = new GcmProfileService(gcmKey);
+  return {
+    ecbForgedRole: await ecb.roleForToken(await forgeAdminToken(ecb)), // "admin" — accepted
+    gcmForgedRole: await gcm.roleForToken(await forgeAdminToken(gcm)), // null — tag rejects it
+    gcmHonestRole: await gcm.roleForToken(await gcm.issueToken("alice@example.com")), // "user"
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -147,7 +212,6 @@ export async function gcmTokenRoundtrip(email, key = randomKey()) {
 // ---------------------------------------------------------------------------
 export async function encryptPixels(rgba, key = randomKey()) {
   const ecb = (await aesEcbEncrypt(key, rgba, true)).slice(0, rgba.length);
-  const { aesCbcEncrypt } = await import("./crypto.mjs");
   const cbc = (await aesCbcEncrypt(key, rgba)).ciphertext.slice(0, rgba.length);
   const gcm = (await aesGcmEncrypt(key, rgba)).ciphertext.slice(0, rgba.length);
   return { ecb, cbc, gcm };

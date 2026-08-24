@@ -113,8 +113,12 @@ export async function aesCbcEncrypt(keyBytes, plaintext, iv = null) {
 }
 
 // ---- real AES-GCM (fresh random 96-bit nonce, authenticated) ----
+// 96 bits is SP 800-38D's default IV length and the minimum random-field length
+// its RBG-based construction (§8.2.2) allows.
+export const GCM_NONCE_SIZE = 12;
+
 export async function aesGcmEncrypt(keyBytes, plaintext) {
-  const nonce = globalThis.crypto.getRandomValues(new Uint8Array(12));
+  const nonce = globalThis.crypto.getRandomValues(new Uint8Array(GCM_NONCE_SIZE));
   const k = await subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt"]);
   const ct = new Uint8Array(await subtle.encrypt({ name: "AES-GCM", iv: nonce }, k, plaintext));
   return { nonce, ciphertext: ct }; // ct includes the 16-byte auth tag

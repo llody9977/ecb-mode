@@ -190,12 +190,18 @@ def d3():
                   "TARGET  ·  S0 is already known from step 1", [A] * 14 + [("S0", "known"), ("S1", "known")],
                   "PROBE  ·  match now reveals S1 — then shift and repeat for every byte", [A] * 14 + [("S0", "known"), ("?", "unknown")]))
     b.append(text(W / 2, 530, "▼   repeat for each byte", size=12, fill=MUTED, weight="600"))
-    b.append(box(W / 2 - 290, 544, 580, 54,
-                 "Full secret recovered without ever holding the key\n≤ 256 × L oracle queries for an L-byte secret — about 128 × L on average",
+    # Cost: each position costs 1 query to capture the target block plus up to 256
+    # to find the byte — 257, not 256. Detecting the block size and the secret
+    # length costs at most 34 more. Keep these numbers in step with docs/index.html;
+    # test/docs-claims.test.mjs fails if they drift.
+    b.append(box(W / 2 - 300, 544, 600, 74,
+                 "Full secret recovered without ever holding the key\n"
+                 "≤ 257 × L oracle queries for an L-byte secret, plus ≤ 34 to size it up\n"
+                 "≈ 129 × L on average; ≈ 96 × L for a printable-ASCII secret",
                  fill=GREEN, stroke="#15803d", tc="#fff", size=13, lh=17))
-    b.append(text(W / 2, 620, "Scope: run only against a local demonstration oracle (attacks.mjs makeSuffixOracle), never a third-party service.",
+    b.append(text(W / 2, 640, "Scope: run only against a local demonstration oracle (attacks.mjs makeSuffixOracle), never a third-party service.",
                   size=10.5, fill=MUTED))
-    return svg(W, 636, "Vector 3 — chosen-plaintext byte-at-a-time recovery", "".join(b))
+    return svg(W, 656, "Vector 3 — chosen-plaintext byte-at-a-time recovery", "".join(b))
 
 # ---------------- Diagram 4: cut-and-paste ----------------
 def d4():
@@ -260,7 +266,7 @@ def d1():
         o = [panel(24, y0, W - 48, 96)]
         o.append(f'<rect x="44" y="{y0 + 18}" width="120" height="30" rx="15" fill="{NAVY}"/>')
         o.append(text(44 + 60, y0 + 38, name, size=13, fill="#fff", weight="700"))
-        o.append(text(44, y0 + 66, caption, size=11.5, fill=MUTED, anchor="start", lh=14))
+        o.append(text(44, y0 + 56, caption, size=11.5, fill=MUTED, anchor="start", lh=13.5))
         ow, oh = 82, 46
         ox2 = W - 48 - ow - 10
         ox1 = ox2 - ow - 46
@@ -271,15 +277,20 @@ def d1():
         return "".join(o)
 
     b.append(moderow(184, "AES-ECB",
-        "Feeds each plaintext block straight into AES —\nsame block in, same block out.",
+        "Feeds each plaintext block straight into AES with nothing\nmixed in — same block in, same block out, at any position\nand in every message encrypted under that key.",
         "#dc2626", "#dc2626", True, RED, "C₁ = C₂  →  the pattern leaks"))
+    # The first CBC block has no preceding ciphertext — it is XORed with the IV,
+    # and a fresh IV per message is what stops the repeat across messages. Saying
+    # only "XORs with the previous ciphertext" is wrong for P₁, which is drawn here.
     b.append(moderow(292, "AES-CBC",
-        "XORs each block with the previous ciphertext\nfirst, so identical blocks enter AES differently.",
+        "XORs each block with the previous ciphertext, and the first\nwith a fresh random IV per message — so identical blocks\nnever enter AES the same way twice.",
         "#0ea5e9", "#f59e0b", False, GREEN, "C₁ ≠ C₂  →  no leak"))
     b.append(moderow(400, "AES-GCM",
-        "XORs the plaintext with a fresh per-message\nkeystream before it is ever a ciphertext block.",
+        "XORs the plaintext with a keystream derived from a fresh\nper-message nonce, then authenticates the result — the\nplaintext never enters AES directly at all.",
         "#8b5cf6", "#10b981", False, GREEN, "C₁ ≠ C₂  →  no leak"))
-    return svg(W, 512, "Why only ECB leaks structure", "".join(b),
+    b.append(text(W / 2, 524, "CBC and GCM avoid the repeat only while the IV / nonce is fresh for every message under the key; reuse one and the leak comes back.",
+                  size=10.5, fill=MUTED))
+    return svg(W, 540, "Why only ECB leaks structure", "".join(b),
                subtitle="the same identical pair, three modes — only ECB hands back an identical pair")
 
 for name, fn in [("modes-ecb-cbc-gcm", d1), ("taxonomy", d2), ("vector3-byte-at-a-time", d3), ("vector4-cut-and-paste", d4)]:

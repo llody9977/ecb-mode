@@ -17,7 +17,7 @@ The site turns each weakness into a demonstration you can drive. The crypto is *
 - **Equality inference** — cluster users by identical ciphertext with no decryption (the Adobe 2013 pattern).
 - **Byte-at-a-time recovery** — step a chosen-plaintext oracle and watch a hidden secret fall one byte at a time.
 - **Cut-and-paste** — forge a `role=admin` token from a `role=user` service using only its public interface.
-- **The fix** — the same token under AES-GCM: flip one bit and watch the authentication tag reject it.
+- **The fix** — the *same* `forgeAdminToken()` run against a GCM-backed service: the splice that produced `role=admin` fails tag verification and returns nothing, with the mode as the only variable. A single-bit flip is shown alongside it as the finer-grained case.
 
 ![AES-ECB has two root causes — determinism (one key maps a plaintext block to the same ciphertext block at any position, in any message) and no authentication (tampering is not detected). Determinism alone drives Vector 1 pattern leakage, Vector 2 equality inference and Vector 3 byte-at-a-time recovery; Vector 4 cut-and-paste needs determinism and the missing authentication together. There is no third root cause.](docs/diagrams/taxonomy.svg)
 

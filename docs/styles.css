@@ -89,6 +89,13 @@ button:disabled { opacity: .5; cursor: default; }
 .canvas-row figcaption { margin-top: 6px; font-weight: 600; }
 @media (max-width: 620px) { .canvas-row { grid-template-columns: repeat(2, 1fr); } }
 
+/* GCM side-by-side outcome lines */
+.gcm-line { display: flex; align-items: baseline; gap: 8px; font-size: 14px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.gcm-line:last-child { border-bottom: 0; }
+.tag { flex: 0 0 auto; font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .04em; border-radius: 5px; padding: 2px 7px; }
+.tag.bad { background: var(--red-soft); color: var(--red); border: 1px solid var(--red); }
+.tag.good { background: var(--green-soft); color: var(--green); border: 1px solid var(--green); }
+
 /* verdict banners */
 .verdict { border-radius: 8px; padding: 10px 14px; margin-top: 14px; font-size: 14px; display: none; }
 .verdict.show { display: block; }
