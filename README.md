@@ -19,7 +19,7 @@ The site turns each weakness into a demonstration you can drive. The crypto is *
 - **Cut-and-paste** — forge a `role=admin` token from a `role=user` service using only its public interface.
 - **The fix** — the *same* `forgeAdminToken()` run against a GCM-backed service: the splice that produced `role=admin` fails tag verification and returns nothing, with the mode as the only variable. A single-bit flip is shown alongside it as the finer-grained case.
 
-![AES-ECB has two root causes — determinism (one key maps a plaintext block to the same ciphertext block at any position, in any message) and no authentication (tampering is not detected). Determinism alone drives Vector 1 pattern leakage, Vector 2 equality inference and Vector 3 byte-at-a-time recovery; Vector 4 cut-and-paste needs determinism and the missing authentication together. There is no third root cause.](docs/diagrams/taxonomy.svg)
+![AES-ECB has two relevant cryptographic properties: determinism and no authentication. Determinism enables pattern leakage, equality inference, and byte-at-a-time recovery; cut-and-paste needs both properties. Repetition, alignment, oracle access, and parser trust determine whether an attacker can realize each vector.](docs/diagrams/taxonomy.svg)
 
 ## Structure
 
@@ -30,8 +30,9 @@ The site turns each weakness into a demonstration you can drive. The crypto is *
 ## Develop
 
 ```bash
-npm ci            # install eslint (tests need no dependencies)
+npm ci            # install development and browser-test dependencies
 npm test          # node --test — verifies every vector against real AES
+npm run test:browser  # exercises every default demo in Chromium
 npm run lint      # eslint
 
 # preview the site locally

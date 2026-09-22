@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 
 import {
   aesEcbEncrypt, aesEcbDecrypt, aesCbcEncrypt, aesGcmEncrypt,
-  fromHex, toHex, utf8, concat, hasRepeatedBlocks, randomKey,
+  fromHex, toHex, utf8, concat, splitBlocks, blockAt, padPkcs7,
+  unpadPkcs7, hasRepeatedBlocks, randomKey,
 } from "../docs/js/crypto.mjs";
 import {
   equalityInference, makeSuffixOracle, recoverSecret, encryptPixels,
@@ -65,6 +66,20 @@ test("AES helpers reject malformed keys, blocks, IVs, and non-byte inputs", asyn
   await assert.rejects(aesGcmEncrypt(key, "not bytes"), /Uint8Array/);
 });
 
+test("byte helpers reject malformed hex, unsafe block sizes, and invalid indices", () => {
+  assert.throws(() => fromHex("abc"), /even number/);
+  assert.throws(() => fromHex("zz"), /hexadecimal/);
+  assert.throws(() => fromHex(1234), /hex input/);
+  assert.throws(() => splitBlocks(new Uint8Array(4), 0), /block size/);
+  assert.throws(() => splitBlocks(new Uint8Array(4), -1), /block size/);
+  assert.throws(() => hasRepeatedBlocks(new Uint8Array(4), 0), /block size/);
+  assert.throws(() => blockAt(new Uint8Array(4), -1), /block index/);
+  assert.throws(() => blockAt(new Uint8Array(4), 0.5), /block index/);
+  assert.throws(() => padPkcs7(new Uint8Array(4), 0), /block size/);
+  assert.throws(() => unpadPkcs7(new Uint8Array(4), 0), /block size/);
+  assert.throws(() => randomKey(15), /AES key length/);
+});
+
 test("repeated-block detector flags ECB but not CBC or GCM", async () => {
   const key = randomKey();
   const repeated = concat(utf8("YELLOW SUBMARINE"), utf8("YELLOW SUBMARINE"));
@@ -79,6 +94,14 @@ test("Vector 2 — equality inference clusters shared passwords with no decrypti
   }, randomKey());
   const sets = clusters.map((g) => g.slice().sort().join(",")).sort();
   assert.deepEqual(sets, ["alice,carol", "bob,erin"]);
+});
+
+test("Vector 2 — entry lists preserve duplicate and prototype-like user names", async () => {
+  const { rows, clusters } = await equalityInference([
+    ["__proto__", "same"], ["__proto__", "same"], ["constructor", "different"],
+  ], randomKey());
+  assert.deepEqual(rows.map((row) => row.name), ["__proto__", "__proto__", "constructor"]);
+  assert.deepEqual(clusters, [["__proto__", "__proto__"]]);
 });
 
 test("Vector 3 — byte-at-a-time recovers the exact secret", async () => {
