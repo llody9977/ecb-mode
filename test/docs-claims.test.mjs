@@ -16,6 +16,7 @@ const INDEX = read("docs/index.html");
 const GENERATOR = read("docs/diagrams/generate_diagrams.py");
 const VECTOR3_SVG = read("docs/diagrams/vector3-byte-at-a-time.svg");
 const MODES_SVG = read("docs/diagrams/modes-ecb-cbc-gcm.svg");
+const TAXONOMY_SVG = read("docs/diagrams/taxonomy.svg");
 const UI = read("docs/js/ui.mjs");
 const ATTACKS = read("docs/js/attacks.mjs");
 const STYLES = read("docs/styles.css");
@@ -129,6 +130,36 @@ test("forgeAdminToken reads the token layout from the service, not from a caller
 test("the detection claim does not assert repeats are sufficient evidence", () => {
   assert.doesNotMatch(INDEX, /sufficient evidence of deterministic, block-independent encryption/);
   assert.match(INDEX, /constant IV/, "the corpus counterexample must be stated");
+});
+
+test("taxonomy separates cryptographic properties from exploit preconditions", () => {
+  for (const [name, text] of [["index.html", INDEX], ["generator", GENERATOR], ["taxonomy svg", TAXONOMY_SVG]]) {
+    assert.doesNotMatch(text, /there is no third root cause/i, `${name} must not present the taxonomy as exhaustive causation`);
+    assert.match(text, /scenario-specific preconditions|repetition, alignment, oracle access/i,
+      `${name} must state that realized attacks require surrounding conditions`);
+  }
+});
+
+test("production evidence and browser randomness claims keep their boundaries", () => {
+  assert.match(INDEX, /ECB exposure; the realized vector depends on each app's data flow and attacker access/);
+  assert.doesNotMatch(INDEX, /Android apps[\s\S]{0,900}Vectors 1–4/);
+  assert.match(INDEX, /cryptographically strong random values/);
+  assert.match(INDEX, /must separately verify[\s\S]{0,160}NIST RBG requirements/);
+  assert.doesNotMatch(INDEX, /what <code>crypto\.getRandomValues<\/code> gives you/);
+});
+
+test("real-world evidence follows the attack vectors before detection and remediation", () => {
+  const vector4 = INDEX.indexOf("Vector 4 — Block malleability");
+  const evidence = INDEX.indexOf("<h2>Real-world evidence</h2>");
+  const detection = INDEX.indexOf("<h2>Detecting ECB</h2>");
+  const remediation = INDEX.indexOf('<h2 id="fix">');
+  assert.ok(vector4 < evidence && evidence < detection && detection < remediation);
+});
+
+test("every demo canvas has an accessible name and fallback text", () => {
+  const canvases = [...INDEX.matchAll(/<canvas\s[^>]*aria-label="[^"]+"[^>]*>([^<]+)<\/canvas>/g)];
+  assert.equal(canvases.length, 4);
+  for (const canvas of canvases) assert.ok(canvas[1].trim().length > 20);
 });
 
 // Every figure must carry its own scope line, because a figure detaches from the

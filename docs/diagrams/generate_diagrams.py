@@ -94,9 +94,9 @@ def d2():
     b = [box(W / 2 - 80, 62, 160, 44, "AES-ECB", fill=NAVY, stroke="#0d1b2a", tc="#fff", size=15, weight="700")]
     r1 = (70, 150, 340, 68)
     r2 = (490, 150, 340, 68)
-    b.append(box(*r1, "Root cause 1 — Determinism\nsame plaintext block → same ciphertext block,\nat any position, in any message",
+    b.append(box(*r1, "Property 1 — Determinism\nsame plaintext block → same ciphertext block,\nat any position, in any message",
                  fill=NAVY, stroke="#0d1b2a", tc="#fff", size=12.5))
-    b.append(box(*r2, "Root cause 2 — No authentication\nnothing detects a ciphertext that was\naltered or reassembled",
+    b.append(box(*r2, "Property 2 — No authentication\nnothing detects a ciphertext that was\naltered or reassembled",
                  fill=NAVY, stroke="#0d1b2a", tc="#fff", size=12.5))
     b.append(arrow(W / 2, 106, r1[0] + r1[2] / 2, r1[1] - 2))
     b.append(arrow(W / 2, 106, r2[0] + r2[2] / 2, r2[1] - 2))
@@ -123,10 +123,12 @@ def d2():
     # the same way at its new position. Dashed to mark the second dependency.
     b.append(path(f"M {r1c} {r1[1] + r1[3]} C {r1c} {r1[1] + r1[3] + 34}, {v4cx - 120} {vy - 30}, {v4cx - 26} {vy - 2}", dashed=True))
     b.append(alabel((r1c + v4cx) / 2 + 40, vy - 26, "Vector 4 needs determinism too"))
+    b.append(text(W / 2, 356, "Cryptographic properties enable these vectors; repetition, alignment, oracle access, and parser trust determine whether each exploit is realizable.",
+                  size=10.5, fill=MUTED))
     b.append(text(W / 2, 372, "Scope: educational analysis of ECB's failure modes; every vector here is demonstrated only against the local in-page oracle in this project.",
                   size=10.5, fill=MUTED))
-    return svg(W, 388, "ECB's two root causes and four attack vectors", "".join(b),
-               subtitle="every vector follows from one or both root causes — there is no third")
+    return svg(W, 388, "Two ECB properties and four attack vectors", "".join(b),
+               subtitle="the properties create exposure; scenario-specific preconditions determine exploitability")
 
 # ---------------- byte-cell block ----------------
 def block_cells(x, y, cells, cw=34, ch=30):

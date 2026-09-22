@@ -17,7 +17,12 @@ const ZERO_IV = new Uint8Array(BLOCK_SIZE);
 
 // ---- byte / string helpers ----
 export const toHex = (b) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
-export const fromHex = (s) => new Uint8Array(s.match(/../g)?.map((h) => parseInt(h, 16)) ?? []);
+export function fromHex(s) {
+  if (typeof s !== "string" || s.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(s)) {
+    throw new TypeError("hex input must contain an even number of hexadecimal characters");
+  }
+  return new Uint8Array(s.match(/../g)?.map((h) => Number.parseInt(h, 16)) ?? []);
+}
 export const utf8 = (s) => new TextEncoder().encode(s);
 // latin1: one char <-> one byte (matches Python's .encode/.decode("latin1"),
 // so raw PKCS#7 padding bytes survive a round-trip through a string field).
@@ -36,7 +41,18 @@ function assertBlockAligned(data, label) {
   }
 }
 
+function assertByteArray(data, label) {
+  if (!(data instanceof Uint8Array)) throw new TypeError(`${label} must be a Uint8Array`);
+}
+
+function assertBlockSize(blockSize) {
+  if (!Number.isSafeInteger(blockSize) || blockSize < 1 || blockSize > 255) {
+    throw new TypeError("block size must be an integer from 1 to 255 bytes");
+  }
+}
+
 export function concat(...arrays) {
+  for (const array of arrays) assertByteArray(array, "concatenated value");
   const total = arrays.reduce((n, a) => n + a.length, 0);
   const out = new Uint8Array(total);
   let o = 0;
@@ -45,16 +61,23 @@ export function concat(...arrays) {
 }
 
 export function splitBlocks(data, blockSize = BLOCK_SIZE) {
+  assertByteArray(data, "data");
+  assertBlockSize(blockSize);
   const out = [];
   for (let i = 0; i < data.length; i += blockSize) out.push(data.slice(i, i + blockSize));
   return out;
 }
 
 export function blockAt(data, index, blockSize = BLOCK_SIZE) {
+  assertByteArray(data, "data");
+  if (!Number.isSafeInteger(index) || index < 0) throw new TypeError("block index must be a non-negative integer");
+  assertBlockSize(blockSize);
   return data.slice(index * blockSize, (index + 1) * blockSize);
 }
 
 export function bytesEqual(a, b) {
+  assertByteArray(a, "first value");
+  assertByteArray(b, "second value");
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
@@ -62,11 +85,15 @@ export function bytesEqual(a, b) {
 
 // ---- PKCS#7 ----
 export function padPkcs7(data, blockSize = BLOCK_SIZE) {
+  assertByteArray(data, "data");
+  assertBlockSize(blockSize);
   const padLen = blockSize - (data.length % blockSize);
   return concat(data, new Uint8Array(padLen).fill(padLen));
 }
 
 export function unpadPkcs7(data, blockSize = BLOCK_SIZE) {
+  assertByteArray(data, "data");
+  assertBlockSize(blockSize);
   if (data.length === 0 || data.length % blockSize !== 0) throw new Error("data length is not a multiple of the block size");
   const padLen = data[data.length - 1];
   if (padLen < 1 || padLen > blockSize) throw new Error("invalid PKCS#7 padding");
@@ -156,11 +183,14 @@ export async function aesGcmDecrypt(keyBytes, nonce, ciphertextWithTag) {
 }
 
 export function randomKey(bytes = 16) {
+  if (![16, 24, 32].includes(bytes)) throw new TypeError("AES key length must be 16, 24, or 32 bytes");
   return globalThis.crypto.getRandomValues(new Uint8Array(bytes));
 }
 
 // Detect repeated 16-byte blocks (the black-box ECB signature).
 export function hasRepeatedBlocks(data, blockSize = BLOCK_SIZE) {
+  assertByteArray(data, "data");
+  assertBlockSize(blockSize);
   const seen = new Set();
   for (const b of splitBlocks(data, blockSize)) {
     const h = toHex(b);

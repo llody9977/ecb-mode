@@ -15,13 +15,19 @@ const A = 65; // filler byte 'A'
 
 // ---------------------------------------------------------------------------
 // Vector 2 — equality inference: identical plaintext -> identical ciphertext.
-// users: { name: password }. Returns clusters of names sharing a password,
+// users: an object or iterable of [name, password] pairs. Returns clusters of names sharing a password,
 // found from ciphertext equality alone (no decryption).
 // ---------------------------------------------------------------------------
 export async function equalityInference(users, key = randomKey()) {
   const byCipher = new Map();
   const rows = [];
-  for (const [name, password] of Object.entries(users)) {
+  const entries = users != null && typeof users[Symbol.iterator] === "function"
+    ? users
+    : Object.entries(users ?? {});
+  for (const entry of entries) {
+    if (!Array.isArray(entry) || entry.length !== 2) throw new TypeError("each user must be a [name, password] pair");
+    const [name, password] = entry;
+    if (typeof name !== "string" || typeof password !== "string") throw new TypeError("user names and passwords must be strings");
     const ct = await aesEcbEncrypt(key, utf8(password));
     const h = toHex(ct);
     rows.push({ name, password, cipherHex: h });

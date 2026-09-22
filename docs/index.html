@@ -45,14 +45,14 @@
   </figure>
 
   <h2>Why determinism breaks confidentiality</h2>
-  <p>A mode should be indistinguishable under chosen-plaintext attack (IND-CPA): submit two equal-length messages, receive the encryption of one chosen at random, and you should not guess which better than a coin flip. Consider two 2-block messages — one is <code>A×16 ∥ A×16</code> (identical blocks), the other <code>A×16 ∥ B×16</code> (distinct). Answer "first" if the two ciphertext blocks are equal. You are right every time, because ECB's determinism makes <code>C₁ = C₂</code> exactly when <code>P₁ = P₂</code>. Advantage 1 — the maximum. A stronger key does not change this; the break is in the mode.</p>
+  <p>A mode should be indistinguishable under chosen-plaintext attack (IND-CPA): submit two equal-length messages, receive the encryption of one chosen at random, and you should not guess which better than a coin flip. Consider two 2-block messages — one is <code>A×16 ∥ A×16</code> (identical blocks), the other <code>A×16 ∥ B×16</code> (distinct). Answer "first" if the two ciphertext blocks are equal. You win with probability 1 instead of 1/2, because ECB's determinism makes <code>C₁ = C₂</code> exactly when <code>P₁ = P₂</code>. A stronger key does not change this; the break is in the mode.</p>
   <p class="muted">A passive observer needs repeated blocks to see this pattern. The IND-CPA break does not: an encryption oracle lets an attacker encrypt either one-block candidate and compare it with the challenge. “It is only one block” may prevent a passive collision, but it does not make ECB IND-CPA secure. For key wrapping, NIST specifies dedicated modes in <a href="https://csrc.nist.gov/pubs/sp/800/38/f/final">SP 800-38F</a> rather than raw ECB.</p>
 
-  <h2>Two root causes, four vectors</h2>
-  <p>These four vectors reduce to two properties. Determinism drives the three confidentiality attacks. Cut-and-paste needs determinism to make blocks portable and missing authentication to let the splice pass unnoticed.</p>
+  <h2>Two ECB properties, four vectors</h2>
+  <p>These demonstrations trace back to two properties of ECB. Determinism enables the three confidentiality attacks. Cut-and-paste also depends on the lack of authentication, which lets a moved block pass unnoticed. Those properties create exposure, but each realized attack still needs conditions in the surrounding system: repeated or predictable aligned data for pattern leakage, comparable records under one key for equality inference, an encryption oracle with controllable alignment for byte recovery, or chosen-plaintext access plus a parser that trusts unauthenticated fields for cut-and-paste.</p>
   <figure>
-    <img src="diagrams/taxonomy.svg" alt="Tree: AES-ECB has two root causes — determinism (one key maps a plaintext block to the same ciphertext block at any position, in any message) and no authentication (tampering is not detected). Determinism alone drives Vector 1 pattern leakage, Vector 2 equality inference and Vector 3 byte-at-a-time recovery; Vector 4 cut-and-paste needs determinism and the missing authentication together. There is no third root cause.">
-    <figcaption>The four demonstrations all follow from determinism, missing authentication, or both.</figcaption>
+    <img src="diagrams/taxonomy.svg" alt="Tree: AES-ECB has two relevant cryptographic properties — determinism, where one key maps a plaintext block to the same ciphertext block at any position in any message, and no authentication, so tampering is not detected. Determinism enables Vectors 1 through 3; Vector 4 needs both properties. Each exploit also depends on scenario-specific access, alignment, repetition, or parser conditions.">
+    <figcaption>The cryptographic weaknesses enable the four vectors; scenario-specific preconditions determine whether an attacker can realize them.</figcaption>
   </figure>
 
   <!-- VECTOR 1 -->
@@ -64,10 +64,10 @@
     <h3>Encrypt an image under each mode</h3>
     <p class="hint">The same bitmap and the same AES-128 key, encrypted three ways. Only ECB preserves the shape.</p>
     <div class="canvas-row">
-      <figure><canvas id="img-original" width="96" height="96"></canvas><figcaption>Plaintext</figcaption></figure>
-      <figure><canvas id="img-ecb" width="96" height="96"></canvas><figcaption class="text-danger">AES-ECB</figcaption></figure>
-      <figure><canvas id="img-cbc" width="96" height="96"></canvas><figcaption class="text-safe">AES-CBC</figcaption></figure>
-      <figure><canvas id="img-gcm" width="96" height="96"></canvas><figcaption class="text-safe">AES-GCM</figcaption></figure>
+      <figure><canvas id="img-original" width="96" height="96" role="img" aria-label="Plaintext bitmap with a visible geometric pattern">Plaintext bitmap with a geometric pattern.</canvas><figcaption>Plaintext</figcaption></figure>
+      <figure><canvas id="img-ecb" width="96" height="96" role="img" aria-label="AES-ECB ciphertext image that retains the plaintext pattern">AES-ECB ciphertext retains the pattern.</canvas><figcaption class="text-danger">AES-ECB</figcaption></figure>
+      <figure><canvas id="img-cbc" width="96" height="96" role="img" aria-label="AES-CBC ciphertext image with no visible plaintext pattern">AES-CBC ciphertext obscures the pattern.</canvas><figcaption class="text-safe">AES-CBC</figcaption></figure>
+      <figure><canvas id="img-gcm" width="96" height="96" role="img" aria-label="AES-GCM ciphertext image with no visible plaintext pattern">AES-GCM ciphertext obscures the pattern.</canvas><figcaption class="text-safe">AES-GCM</figcaption></figure>
     </div>
     <div class="row"><button type="button" id="img-run">Regenerate &amp; encrypt</button></div>
   </div>
@@ -150,6 +150,20 @@ erin: letmein123</textarea>
     <div class="verdict" id="frg-verdict"></div>
   </div>
 
+  <h2>Real-world evidence</h2>
+  <p>These cases show that the properties above have escaped into production. The impact still depends on what was encrypted, how keys were shared, and what an attacker could observe or control.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Case</th><th>What happened</th><th>Exposure demonstrated</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Adobe, 2013</strong></td><td>152,982,479 password records encrypted (not hashed) in ECB with an 8-byte block cipher, "allegedly 3DES", unsalted. Identical passwords produced byte-identical ciphertext; researchers clustered accounts and used leaked plaintext hints to identify common values. Because the block was 8 bytes and not the whole password, sharing any 8-character block with another user leaked that portion too (<a href="https://filippo.io/analyzing-the-adobe-leaked-passwords/">filippo.io</a>).</td><td>Equality and frequency inference</td></tr>
+        <tr><td><strong>Zoom, 2020</strong> (<a href="https://nvd.nist.gov/vuln/detail/CVE-2020-11500">CVE-2020-11500</a>)</td><td>Every meeting used one AES-128 key in ECB mode for all audio and video, preserving structure. The implementation also used AES-128 rather than the AES-256 marketed at the time (<a href="https://citizenlab.ca/research/move-fast-roll-your-own-crypto-a-quick-look-at-the-confidentiality-of-zoom-meetings/">Citizen Lab</a>).</td><td>Pattern and structure leakage</td></tr>
+        <tr><td><strong>Microsoft Office 365 Message Encryption, 2022</strong></td><td>OME encrypted message bodies with AES-ECB; repeated or structured content leaked across messages sharing a key. Microsoft replied that the report did not meet its bar for security servicing; no code change was made and no CVE was issued (<a href="https://web.archive.org/web/20231208040047/https://labs.withsecure.com/advisories/microsoft-office-365-message-encryption-insecure-mode-of-operation">WithSecure advisory</a>, archived because the original now redirects).</td><td>Pattern and structure leakage</td></tr>
+        <tr><td><strong>Android apps, 2013</strong></td><td>Of 11,748 Google Play apps using crypto APIs, “do not use ECB” was the most-violated rule: 7,656 apps, including 5,656 where the developer named only a block cipher such as <code>AES</code> and the provider defaulted to ECB (<a href="https://seclab.cs.ucsb.edu/files/publications/Egele2015An_Empirical.pdf">Egele et al., ACM CCS 2013</a>).</td><td>ECB exposure; the realized vector depends on each app's data flow and attacker access</td></tr>
+      </tbody>
+    </table>
+  </div>
+
   <h2>Detecting ECB</h2>
   <p>Two independent angles, because the ciphertext-only test cannot see a codebase and the source-only test cannot see a black box.</p>
   <ul>
@@ -163,34 +177,21 @@ erin: letmein123</textarea>
   <div class="demo" id="demo-gcm">
     <div class="demo-head">Live in your browser</div>
     <h3>The same forgery under GCM — watch it fail</h3>
-    <p class="hint">The identical service, the identical attacker, the identical splice from Vector 4 — the mode is the only thing that changes. <code>forgeAdminToken()</code> is literally the same function run against a GCM-backed <code>ProfileService</code>, so anything that differs below is the mode and nothing else. The single-bit flip is included as the finer-grained case.</p>
+    <p class="hint">The service interface and <code>forgeAdminToken()</code> are unchanged; only the mode differs. The single-bit flip shows the finer-grained case.</p>
     <div class="row"><button type="button" id="gcm-run">Re-run the Vector 4 splice against GCM</button></div>
     <div id="gcm-out" class="mt-12"></div>
     <div class="verdict" id="gcm-verdict"></div>
   </div>
-  <p class="muted">Note what this does and does not establish. It shows that a spliced token fails tag verification and returns nothing — that is Vector 4 closed. It does not show that GCM is safe under nonce reuse, which is a separate property and the subject of the next section.</p>
+  <p class="muted">A rejected splice closes Vector 4. It says nothing about nonce reuse, which is a separate risk covered below.</p>
   <p>If AEAD genuinely is not available, CBC with a fresh unpredictable IV per message — or CTR with a counter block that is never reused under the same key — plus a separately computed MAC (encrypt-then-MAC, verified before decryption) restores confidentiality and integrity. It is strictly more to get wrong than using an AEAD mode directly.</p>
   <p>Switching the mode only protects data written from now on. Anything already stored under ECB keeps leaking until it is rewritten: decrypt it with the old ECB key and re-encrypt under the new AEAD scheme with fresh per-message nonces, as a one-time migration. Rotate the key at the same time so the retired ECB key can be destroyed and old ciphertext cannot be revived.</p>
-
-  <h2>Real-world evidence</h2>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Case</th><th>What happened</th><th>Vector</th></tr></thead>
-      <tbody>
-        <tr><td><strong>Adobe, 2013</strong></td><td>152,982,479 password records encrypted (not hashed) in ECB with an 8-byte block cipher, "allegedly 3DES", unsalted. Identical passwords → byte-identical ciphertext; researchers clustered accounts and read the common values off the leaked plaintext hints. Because the block was 8 bytes and not the whole password, sharing any 8-character block with another user leaked that portion too (<a href="https://filippo.io/analyzing-the-adobe-leaked-passwords/">filippo.io</a>).</td><td>Vector 2</td></tr>
-        <tr><td><strong>Zoom, 2020</strong> (<a href="https://nvd.nist.gov/vuln/detail/CVE-2020-11500">CVE-2020-11500</a>)</td><td>Every meeting used one AES-128 key in ECB mode for all audio/video, preserving structure — and it was AES-128, not the AES-256 marketed at the time (<a href="https://citizenlab.ca/research/move-fast-roll-your-own-crypto-a-quick-look-at-the-confidentiality-of-zoom-meetings/">Citizen Lab</a>).</td><td>Vector 1</td></tr>
-        <tr><td><strong>MS Office 365 Message Encryption, 2022</strong></td><td>OME encrypted message bodies with AES-ECB; repeated/structured content leaked across messages sharing a key. Microsoft replied that the report "was not considered meeting the bar for security servicing"; no code change was made and no CVE was issued (<a href="https://web.archive.org/web/20231208040047/https://labs.withsecure.com/advisories/microsoft-office-365-message-encryption-insecure-mode-of-operation">WithSecure advisory</a>, archived — the original URL now redirects to a general landing page).</td><td>Vector 1</td></tr>
-        <tr><td><strong>Android apps, 2013</strong></td><td>Of 11,748 Google Play apps using crypto APIs, "do not use ECB" was the single most-violated rule — 7,656 apps, 5,656 of them because the developer named only a block cipher such as <code>AES</code> and the provider defaulted to ECB (<a href="https://seclab.cs.ucsb.edu/files/publications/Egele2015An_Empirical.pdf">Egele et al., ACM CCS 2013</a>).</td><td>Vectors 1–4</td></tr>
-      </tbody>
-    </table>
-  </div>
 
   <h2>Residual risk after switching to GCM</h2>
   <p>GCM defeats all four vectors but adds a failure mode of its own: reusing a <code>(key, nonce)</code> pair breaks confidentiality and leaks the authentication key, which lets the tag be forged. An Internet-wide scan (<a href="https://eprint.iacr.org/2016/475">Böck et al., USENIX WOOT 2016</a>) found 184 HTTPS servers repeating AES-GCM nonces, fully breaking authenticity of those connections.</p>
   <p>The requirement is <strong>uniqueness, not randomness</strong>. <a href="https://csrc.nist.gov/pubs/sp/800/38/d/final">SP 800-38D</a> §8 states it as a probability bound: the encryption function "shall" never be invoked "with the same IV and the same key on two (or more) distinct sets of input data" with probability greater than 2<sup>−32</sup>. §8.2 gives two approved ways to get there, and an implementation picks one per key:</p>
   <ul>
     <li><strong>Deterministic</strong> (§8.2.1) — a fixed field identifying the device or context, plus an invocation field such as a counter. A 96-bit deterministic IV is exempt from §8.3's global 2<sup>32</sup> cap, but the counter still must not repeat; rekey before its invocation field is exhausted.</li>
-    <li><strong>RBG-based</strong> (§8.2.2) — at least 96 random bits from an approved RBG. This is what the demos above use, and what <code>crypto.getRandomValues</code> gives you.</li>
+    <li><strong>RBG-based</strong> (§8.2.2) — at least 96 random bits from an approved RBG. The demos use <code>crypto.getRandomValues()</code>, which provides cryptographically strong random values in the browser. A regulated deployment must separately verify that its browser, platform, and cryptographic module meet the applicable NIST RBG requirements.</li>
   </ul>
   <p>Choosing the random construction buys simplicity and costs a ceiling: §8.3 caps total invocations per key at 2<sup>32</sup>. The same global cap applies when the deterministic construction uses IV lengths other than 96 bits. These are operational limits for a rekey schedule, not properties GCM enforces for every caller.</p>
   <p class="muted"><strong>Standards status, September 2026.</strong> SP 800-38D remains NIST's published GCM recommendation. NIST's current <a href="https://csrc.nist.gov/pubs/sp/800/38/d/r1/2prd">revision proposal</a> would remove authentication tags shorter than 96 bits; it is a pre-draft call for comments, not a replacement standard. The demos use Web Crypto's 128-bit tag.</p>

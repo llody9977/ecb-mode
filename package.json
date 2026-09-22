@@ -5,12 +5,14 @@
   "type": "module",
   "description": "Why AES-ECB is unsafe — interactive demonstrations running real AES in the browser.",
   "scripts": {
-    "test": "node --test",
+    "test": "node --test test/*.test.mjs",
+    "test:browser": "node test/browser.e2e.mjs",
     "lint": "eslint ."
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "eslint": "10.11.0"
+    "eslint": "10.11.0",
+    "playwright": "1.63.0"
   },
   "license": "Apache-2.0"
 }

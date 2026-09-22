@@ -90,19 +90,25 @@ async function runBlockCompare() {
 
 // ---------- Vector 2: equality inference ----------
 async function runEquality() {
-  const users = {};
+  const users = [];
   for (const line of $("users-in").value.split("\n")) {
     const i = line.indexOf(":"); if (i < 0) continue;
     const name = line.slice(0, i).trim(); const pw = line.slice(i + 1).trim();
-    if (name) users[name] = pw;
+    if (name) users.push([name, pw]);
   }
   const { rows, clusters } = await equalityInference(users);
-  const shared = new Map();
-  clusters.forEach((g, gi) => g.forEach((n) => shared.set(n, gi)));
+  const cipherGroups = new Map();
+  for (const row of rows) {
+    if (!cipherGroups.has(row.cipherHex)) cipherGroups.set(row.cipherHex, []);
+    cipherGroups.get(row.cipherHex).push(row);
+  }
+  const shared = new Map(
+    [...cipherGroups.entries()].filter(([, group]) => group.length > 1).map(([cipherHex], index) => [cipherHex, index]),
+  );
   const out = $("eq-out"); out.hidden = false;
   out.innerHTML = `<table><thead><tr><th>User</th><th>Password</th><th>Ciphertext (AES-ECB)</th></tr></thead><tbody>${
     rows.map((r) => {
-      const gi = shared.get(r.name);
+      const gi = shared.get(r.cipherHex);
       const clusterClass = gi != null ? `cluster-${gi % 4}` : "";
       const dot = gi != null ? `<span class="${clusterClass}" aria-hidden="true">● </span>` : "";
       // only mark it elided when it actually is — a 1-block ciphertext is 32 hex chars
@@ -139,14 +145,14 @@ async function runOracle() {
       onStep: async ({ recovered, padLen, blockIndex, index }) => {
         renderCells($("orc-cells"), padLen, recovered, blockIndex, index);
         $("orc-recovered").innerHTML = esc(printable(recovered)) + '<span class="cursor">▋</span>';
-        $("orc-status").textContent = `${recovered.length} / ${secret.length} bytes · ${queries} oracle queries`;
+        $("orc-status").textContent = `${recovered.length} / ${secret.length} bytes · ${queries.toLocaleString("en-US")} oracle queries`;
         await sleep(28);
       },
     });
     $("orc-recovered").textContent = printable(recovered);
     const ok = toHex(recovered) === toHex(secret);
     verdict($("orc-verdict"), ok ? "bad" : "good",
-      ok ? `<strong>Full secret recovered from ciphertext alone</strong> in ${queries} oracle queries — the key was never exposed.`
+      ok ? `<strong>Full secret recovered from ciphertext alone</strong> in ${queries.toLocaleString("en-US")} oracle queries — the key was never exposed.`
          : "Recovery stopped early (unexpected for this oracle).");
   } finally {
     btn.disabled = false; oracleRunning = false;
