@@ -1,10 +1,8 @@
 """Generate the four hand-authored diagrams embedded in docs/index.html.
 
-The SVGs are theme-aware: theme-dependent colors (card/panel backgrounds, ink and
-muted text, neutral fills, arrows) are CSS variables with a `prefers-color-scheme:
-dark` override, so a single committed SVG renders correctly in both GitHub themes
-when embedded as an image. Semantic colors (navy, red=leak/danger, green=safe,
-purple, amber) stay fixed — they read on either background.
+The SVGs use the same light palette as the article and the ctr-mode companion
+site. Theme-dependent colors are CSS variables so every diagram stays internally
+consistent with the page.
 
 Run: `python3 docs/diagrams/generate_diagrams.py` (writes the .svg files beside it).
 """
@@ -13,21 +11,19 @@ import pathlib
 OUT = pathlib.Path(__file__).resolve().parent
 OUT.mkdir(parents=True, exist_ok=True)
 
-SANS = "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+SANS = "Arial, Helvetica, sans-serif"
 MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
-# sentinels routed to CSS classes (theme-aware); real values live in --vars below
+# Sentinels routed to CSS classes; real values live in --vars below.
 INK, MUTED, NEU_F, NEU_S = "@ink", "@muted", "@neuf", "@neus"
 ARROW = "@arw"
-# fixed semantic colors (read on both themes)
-NAVY = "#1f3a5f"
-RED, GREEN, PURPLE, AMBER, GRAY, BLUE = "#dc2626", "#16a34a", "#6d28d9", "#b45309", "#64748b", "#2563eb"
+# Shared semantic palette from docs/styles.css and ctr-mode.
+NAVY = "#006da0"
+RED, GREEN, PURPLE, AMBER, GRAY, BLUE = "#b42318", "#087c83", "#6d28d9", "#9a5b00", "#64748b", "#006da0"
 
 STYLE = (
  '<style>'
- ':root{--card:#ffffff;--panel:#f8fafc;--border:#e2e8f0;--ink:#0f172a;--muted:#475569;'
- '--neuf:#f1f5f9;--neus:#cbd5e1;--arw:#94a3b8}'
- '@media (prefers-color-scheme:dark){:root{--card:#0d1117;--panel:#161b22;--border:#30363d;'
- '--ink:#e6edf3;--muted:#9aa4b2;--neuf:#1c2330;--neus:#3d444d;--arw:#6e7681}}'
+ ':root{--card:#ffffff;--panel:#f0f8fb;--border:#d3e4eb;--ink:#142f40;--muted:#486371;'
+ '--neuf:#f0f8fb;--neus:#b9d3de;--arw:#7f9aa6}'
  '.cardb{fill:var(--card);stroke:var(--border)}.card{fill:var(--card)}'
  '.panel{fill:var(--panel);stroke:var(--border)}'
  '.neu{fill:var(--neuf);stroke:var(--neus)}.cellA{fill:var(--neuf);stroke:var(--neus)}'
@@ -198,7 +194,7 @@ def d3():
                  "Full secret recovered without ever holding the key\n"
                  "≤ 257 × L oracle queries for an L-byte secret, plus ≤ 34 to size it up\n"
                  "≈ 129 × L on average; ≈ 96 × L for a printable-ASCII secret",
-                 fill=GREEN, stroke="#15803d", tc="#fff", size=13, lh=17))
+                 fill=GREEN, stroke=GREEN, tc="#fff", size=13, lh=17))
     b.append(text(W / 2, 640, "Scope: run only against a local demonstration oracle (attacks.mjs makeSuffixOracle), never a third-party service.",
                   size=10.5, fill=MUTED))
     return svg(W, 656, "Vector 3 — chosen-plaintext byte-at-a-time recovery", "".join(b))
@@ -214,7 +210,7 @@ def d4():
         for i, (txt, kind) in enumerate(blocks):
             x = x0 + i * bw
             if kind == "admin":
-                o.append(f'<rect x="{x}" y="{y}" width="{bw - 6}" height="{bh}" rx="8" fill="#fee2e2" stroke="{RED}" stroke-width="1.6"/>')
+                o.append(f'<rect x="{x}" y="{y}" width="{bw - 6}" height="{bh}" rx="8" fill="#fff1f0" stroke="{RED}" stroke-width="1.6"/>')
                 tc = "#991b1b"
             elif kind == "drop":
                 o.append(f'<rect class="neu" x="{x}" y="{y}" width="{bw - 6}" height="{bh}" rx="8" stroke="{GRAY}" stroke-width="1.6"/>')
@@ -245,7 +241,7 @@ def d4():
     b.append(alabel((donor_admin_cx + gut) / 2, yTop - 4, "copy this ciphertext block", fill=RED))
     b.append(alabel(x0 + 2 * bw + (bw - 6) / 2, yB + bh + 16, "dropped before splicing", fill=GRAY))
     b.append(box(W / 2 - 250, 392, 500, 42, "Decrypts to role=admin  —  server accepts it; no integrity check to fail",
-                 fill=GREEN, stroke="#15803d", tc="#fff", size=13))
+                 fill=GREEN, stroke=GREEN, tc="#fff", size=13))
     b.append(text(W / 2, 456, "Scope: ProfileService is a self-contained local stand-in; the target key stays in-process, no external system involved.",
                   size=10.5, fill=MUTED))
     return svg(W, 472, "Vector 4 — block cut-and-paste privilege escalation", "".join(b))
@@ -256,9 +252,9 @@ def d1():
     b.append(text(W / 2, 80, "Take two identical 16-byte plaintext blocks and encrypt them under one key", size=13, fill=MUTED))
     pw, ph, py = 80, 46, 92
     px1, px2 = W / 2 - pw - 24, W / 2 + 24
-    b.append(box(px1, py, pw, ph, "P₁", fill="#3b82f6", stroke="#1d4ed8", tc="#fff", size=15, weight="700"))
-    b.append(box(px2, py, pw, ph, "P₂", fill="#3b82f6", stroke="#1d4ed8", tc="#fff", size=15, weight="700"))
-    b.append(text(W / 2, py + ph / 2 + 7, "=", size=24, fill="#1d4ed8", weight="800"))
+    b.append(box(px1, py, pw, ph, "P₁", fill=BLUE, stroke=BLUE, tc="#fff", size=15, weight="700"))
+    b.append(box(px2, py, pw, ph, "P₂", fill=BLUE, stroke=BLUE, tc="#fff", size=15, weight="700"))
+    b.append(text(W / 2, py + ph / 2 + 7, "=", size=24, fill=BLUE, weight="800"))
     b.append(text(W / 2, py + ph + 16, "identical input", size=11, fill=MUTED, weight="600"))
     b.append(text(W / 2, 170, "↓   encrypted three ways   ↓", size=12, fill=MUTED, weight="600"))
 
@@ -278,7 +274,7 @@ def d1():
 
     b.append(moderow(184, "AES-ECB",
         "Feeds each plaintext block straight into AES with nothing\nmixed in — same block in, same block out, at any position\nand in every message encrypted under that key.",
-        "#dc2626", "#dc2626", True, RED, "C₁ = C₂  →  the pattern leaks"))
+        RED, RED, True, RED, "C₁ = C₂  →  the pattern leaks"))
     # The first CBC block has no preceding ciphertext — it is XORed with the IV,
     # and a fresh IV per message is what stops the repeat across messages. Saying
     # only "XORs with the previous ciphertext" is wrong for P₁, which is drawn here.

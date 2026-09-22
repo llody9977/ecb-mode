@@ -18,6 +18,7 @@ const VECTOR3_SVG = read("docs/diagrams/vector3-byte-at-a-time.svg");
 const MODES_SVG = read("docs/diagrams/modes-ecb-cbc-gcm.svg");
 const UI = read("docs/js/ui.mjs");
 const ATTACKS = read("docs/js/attacks.mjs");
+const STYLES = read("docs/styles.css");
 
 // Finding: the attack cost was stated as 256 x L on the page, in the diagram alt
 // text, and inside the rendered SVG. The implementation spends 257 x L plus setup,
@@ -49,13 +50,25 @@ test("the modes figure names the IV and carries its freshness qualifier", () => 
   }
 });
 
-// Finding: bcrypt was described as memory-hard. Its working set is a fixed ~4 KiB,
-// so its cost parameter scales time, not memory.
-test("bcrypt is not described as memory-hard", () => {
-  assert.doesNotMatch(INDEX, /memory-hard scheme\s*—\s*Argon2id, scrypt, or bcrypt/,
-    "bcrypt must not be grouped under 'memory-hard'");
-  assert.match(INDEX, /time-hard rather than a memory-hard function/,
-    "the bcrypt qualification must stay explicit");
+test("password-storage guidance matches NIST SP 800-63B-4", () => {
+  assert.match(INDEX, /requires salted password hashing/);
+  assert.match(INDEX, /salt of at least 32 bits/);
+  assert.match(INDEX, /cost factor that is as high as practical/);
+  assert.doesNotMatch(INDEX, /Passwords should .*encrypted/i,
+    "avoid paraphrasing the requirement as an unsupported absolute quote");
+});
+
+test("the page enforces the shared theme and a restrictive CSP", () => {
+  assert.match(STYLES, /--panel:\s*#f0f8fb/);
+  assert.match(STYLES, /--ink:\s*#142f40/);
+  assert.match(STYLES, /--blue:\s*#006da0/);
+  assert.match(INDEX, /Content-Security-Policy[^>]*connect-src 'none'/);
+  assert.doesNotMatch(INDEX, /\sstyle=/, "inline styles would be blocked by the CSP");
+  assert.doesNotMatch(UI, /\sstyle=/, "dynamically generated inline styles would be blocked by the CSP");
+});
+
+test("the Java provider-default citation targets the current JDK guide", () => {
+  assert.match(INDEX, /java\/javase\/25\/security\/java-cryptography-architecture-jca-reference-guide\.html/);
 });
 
 // Finding: the page said the AEAD fix "addresses the other three vectors, not

@@ -41,14 +41,17 @@ function putBytes(canvas, rgba) {
 }
 async function runImage() {
   const btn = $("img-run"); btn.disabled = true; btn.textContent = "Encrypting…";
-  const orig = $("img-original"); drawBitmap(orig);
-  const rgba = orig.getContext("2d").getImageData(0, 0, orig.width, orig.height).data;
-  const key = crypto.getRandomValues(new Uint8Array(16));
-  const { ecb, cbc, gcm } = await encryptPixels(new Uint8Array(rgba), key);
-  // force alpha opaque so the structure is visible, not modulated by random alpha
-  for (const buf of [ecb, cbc, gcm]) for (let i = 3; i < buf.length; i += 4) buf[i] = 255;
-  putBytes($("img-ecb"), ecb); putBytes($("img-cbc"), cbc); putBytes($("img-gcm"), gcm);
-  btn.disabled = false; btn.textContent = "Regenerate & encrypt";
+  try {
+    const orig = $("img-original"); drawBitmap(orig);
+    const rgba = orig.getContext("2d").getImageData(0, 0, orig.width, orig.height).data;
+    const key = crypto.getRandomValues(new Uint8Array(16));
+    const { ecb, cbc, gcm } = await encryptPixels(new Uint8Array(rgba), key);
+    // Force alpha opaque so the structure is visible, not modulated by random alpha.
+    for (const buf of [ecb, cbc, gcm]) for (let i = 3; i < buf.length; i += 4) buf[i] = 255;
+    putBytes($("img-ecb"), ecb); putBytes($("img-cbc"), cbc); putBytes($("img-gcm"), gcm);
+  } finally {
+    btn.disabled = false; btn.textContent = "Regenerate & encrypt";
+  }
 }
 
 // ---------- Vector 1b: block playground ----------
@@ -80,8 +83,8 @@ async function runBlockCompare() {
   const cbc = (await aesCbcEncrypt(key, pt)).ciphertext;
   const gcm = (await aesGcmEncrypt(key, pt)).ciphertext;
   $("blk-out").innerHTML =
-    `<div style="width:100%"><strong style="color:var(--green)">AES-CBC (random IV)</strong>${blocksHtml(cbc)}</div>` +
-    `<div style="width:100%;margin-top:10px"><strong style="color:var(--green)">AES-GCM (AEAD)</strong>${blocksHtml(gcm)}</div>`;
+    `<div class="compare-group"><strong class="compare-label">AES-CBC (random IV)</strong>${blocksHtml(cbc)}</div>` +
+    `<div class="compare-group"><strong class="compare-label">AES-GCM (AEAD)</strong>${blocksHtml(gcm)}</div>`;
   verdict($("blk-verdict"), "good", "<strong>Same plaintext, same key — no repeats.</strong> CBC's per-block chaining and GCM's per-message nonce both destroy the equal-in/equal-out property.");
 }
 
@@ -96,16 +99,15 @@ async function runEquality() {
   const { rows, clusters } = await equalityInference(users);
   const shared = new Map();
   clusters.forEach((g, gi) => g.forEach((n) => shared.set(n, gi)));
-  const palette = ["#dc2626", "#6d28d9", "#b45309", "#2563eb"];
-  const out = $("eq-out"); out.style.display = "block";
+  const out = $("eq-out"); out.hidden = false;
   out.innerHTML = `<table><thead><tr><th>User</th><th>Password</th><th>Ciphertext (AES-ECB)</th></tr></thead><tbody>${
     rows.map((r) => {
       const gi = shared.get(r.name);
-      const color = gi != null ? palette[gi % palette.length] : "";
-      const dot = gi != null ? `<span style="color:${color}">● </span>` : "";
+      const clusterClass = gi != null ? `cluster-${gi % 4}` : "";
+      const dot = gi != null ? `<span class="${clusterClass}" aria-hidden="true">● </span>` : "";
       // only mark it elided when it actually is — a 1-block ciphertext is 32 hex chars
       const shown = r.cipherHex.length > 32 ? `${r.cipherHex.slice(0, 32)}…` : r.cipherHex;
-      return `<tr><td>${dot}${esc(r.name)}</td><td>${esc(r.password)}</td><td class="tok" style="${gi != null ? `color:${color}` : ""}">${shown}</td></tr>`;
+      return `<tr><td>${dot}${esc(r.name)}</td><td>${esc(r.password)}</td><td class="tok ${clusterClass}">${shown}</td></tr>`;
     }).join("")}</tbody></table>`;
   const desc = clusters.map((g) => g.join(" + ")).join("; ");
   verdict($("eq-verdict"), clusters.length ? "bad" : "good",
@@ -127,25 +129,28 @@ function renderCells(container, padLen, recovered, blockIndex, index) {
 async function runOracle() {
   if (oracleRunning) return; oracleRunning = true;
   const btn = $("orc-run"); btn.disabled = true;
-  const secret = utf8($("secret-in").value);
-  const oracle = makeSuffixOracle(secret);
-  $("orc-recovered").innerHTML = '<span class="cursor">▋</span>';
-  $("orc-verdict").className = "verdict"; let queries = 0;
-  const wrapped = (input) => { queries++; return oracle(input); };
-  const recovered = await recoverSecret(wrapped, {
-    onStep: async ({ recovered, padLen, blockIndex, index }) => {
-      renderCells($("orc-cells"), padLen, recovered, blockIndex, index);
-      $("orc-recovered").innerHTML = esc(printable(recovered)) + '<span class="cursor">▋</span>';
-      $("orc-status").textContent = `${recovered.length} / ${secret.length} bytes · ${queries} oracle queries`;
-      await sleep(28);
-    },
-  });
-  $("orc-recovered").textContent = printable(recovered);
-  const ok = toHex(recovered) === toHex(secret);
-  verdict($("orc-verdict"), ok ? "bad" : "good",
-    ok ? `<strong>Full secret recovered from ciphertext alone</strong> in ${queries} oracle queries — the key was never exposed.`
-       : "Recovery stopped early (unexpected for this oracle).");
-  btn.disabled = false; oracleRunning = false;
+  try {
+    const secret = utf8($("secret-in").value);
+    const oracle = makeSuffixOracle(secret);
+    $("orc-recovered").innerHTML = '<span class="cursor">▋</span>';
+    $("orc-verdict").className = "verdict"; let queries = 0;
+    const wrapped = (input) => { queries++; return oracle(input); };
+    const recovered = await recoverSecret(wrapped, {
+      onStep: async ({ recovered, padLen, blockIndex, index }) => {
+        renderCells($("orc-cells"), padLen, recovered, blockIndex, index);
+        $("orc-recovered").innerHTML = esc(printable(recovered)) + '<span class="cursor">▋</span>';
+        $("orc-status").textContent = `${recovered.length} / ${secret.length} bytes · ${queries} oracle queries`;
+        await sleep(28);
+      },
+    });
+    $("orc-recovered").textContent = printable(recovered);
+    const ok = toHex(recovered) === toHex(secret);
+    verdict($("orc-verdict"), ok ? "bad" : "good",
+      ok ? `<strong>Full secret recovered from ciphertext alone</strong> in ${queries} oracle queries — the key was never exposed.`
+         : "Recovery stopped early (unexpected for this oracle).");
+  } finally {
+    btn.disabled = false; oracleRunning = false;
+  }
 }
 
 // ---------- Vector 4: cut-and-paste ----------

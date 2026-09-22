@@ -5,7 +5,7 @@
 ![Secret scan](https://github.com/llody9977/ecb-mode/actions/workflows/gitleaks.yml/badge.svg)
 ![License](https://img.shields.io/github/license/llody9977/ecb-mode)
 
-Electronic Codebook (ECB) encrypts every block independently under the same key, with no randomization and no dependency between blocks. That determinism alone breaks confidentiality outright: ECB fails the standard IND-CPA definition with adversary advantage 1, regardless of key size. A second property — no authentication — means nothing detects a ciphertext that has been altered or reassembled, which is what turns the same determinism into forgery.
+Electronic Codebook (ECB) always maps the same 16-byte plaintext block to the same ciphertext block. That leaks patterns and equality, while the absence of authentication lets attackers rearrange ciphertext undetected. The site demonstrates both failures with real AES and shows how authenticated encryption stops them.
 
 **[▶ Open the interactive site →](https://llody9977.github.io/ecb-mode/)** — every attack below runs live in your browser against real AES.
 
@@ -23,7 +23,7 @@ The site turns each weakness into a demonstration you can drive. The crypto is *
 
 ## Structure
 
-- [`docs/`](docs/) — the GitHub Pages site and the write-up itself: [`index.html`](docs/index.html), [`styles.css`](docs/styles.css), and the theme-aware SVG [`diagrams/`](docs/diagrams/).
+- [`docs/`](docs/) — the GitHub Pages site and write-up: [`index.html`](docs/index.html), [`styles.css`](docs/styles.css), and the SVG [`diagrams/`](docs/diagrams/).
 - [`docs/js/`](docs/js/) — the demo logic: [`crypto.mjs`](docs/js/crypto.mjs) (AES-ECB/CBC/GCM) and [`attacks.mjs`](docs/js/attacks.mjs) (the four vectors), plus [`ui.mjs`](docs/js/ui.mjs) which only wires them to the page.
 - [`test/`](test/) — a Node test suite that exercises the same modules against real AES, including the NIST SP 800-38A AES-ECB vectors.
 

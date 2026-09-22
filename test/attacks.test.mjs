@@ -56,6 +56,15 @@ test("ECB encrypt/decrypt round-trips with PKCS#7", async () => {
   assert.equal(toHex(round), toHex(msg));
 });
 
+test("AES helpers reject malformed keys, blocks, IVs, and non-byte inputs", async () => {
+  const key = randomKey();
+  await assert.rejects(aesEcbEncrypt(new Uint8Array(15), utf8("x")), /AES key/);
+  await assert.rejects(aesEcbEncrypt(key, utf8("not block aligned"), false), /block-aligned/);
+  await assert.rejects(aesEcbDecrypt(key, new Uint8Array(15)), /block-aligned/);
+  await assert.rejects(aesCbcEncrypt(key, utf8("x"), new Uint8Array(12)), /CBC IV/);
+  await assert.rejects(aesGcmEncrypt(key, "not bytes"), /Uint8Array/);
+});
+
 test("repeated-block detector flags ECB but not CBC or GCM", async () => {
   const key = randomKey();
   const repeated = concat(utf8("YELLOW SUBMARINE"), utf8("YELLOW SUBMARINE"));
@@ -132,7 +141,8 @@ test("Vector 4 — cut-and-paste forges role=admin from a role=user service", as
 // test does not establish this: Vector 4 never flips a bit. The contrast only
 // holds if the same forgeAdminToken() runs against both services.
 test("Defensive — the same splice that forges role=admin under ECB is rejected under GCM", async () => {
-  const { ecbForgedRole, gcmForgedRole, gcmHonestRole } = await forgeUnderBothModes();
+  const key = randomKey();
+  const { ecbForgedRole, gcmForgedRole, gcmHonestRole } = await forgeUnderBothModes(key);
   assert.equal(ecbForgedRole, "admin", "the ECB half must be executed, not assumed");
   assert.equal(gcmForgedRole, null, "GCM must reject the spliced token before returning any plaintext");
   assert.equal(gcmHonestRole, "user", "the GCM service must still issue working tokens");

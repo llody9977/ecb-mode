@@ -195,9 +195,9 @@ export async function gcmTokenRoundtrip(email, key = randomKey()) {
 // role=admin" beside a computed GCM result would put an assertion and a measurement
 // side by side as though both were measurements — which is the failure this whole
 // demonstration exists to correct.
-export async function forgeUnderBothModes(ecbKey = randomKey(), gcmKey = randomKey()) {
-  const ecb = new ProfileService(ecbKey);
-  const gcm = new GcmProfileService(gcmKey);
+export async function forgeUnderBothModes(key = randomKey()) {
+  const ecb = new ProfileService(key);
+  const gcm = new GcmProfileService(key);
   return {
     ecbForgedRole: await ecb.roleForToken(await forgeAdminToken(ecb)), // "admin" — accepted
     gcmForgedRole: await gcm.roleForToken(await forgeAdminToken(gcm)), // null — tag rejects it

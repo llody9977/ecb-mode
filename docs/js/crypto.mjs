@@ -24,6 +24,18 @@ export const utf8 = (s) => new TextEncoder().encode(s);
 export const latin1Encode = (s) => Uint8Array.from(s, (c) => c.charCodeAt(0) & 0xff);
 export const latin1Decode = (b) => String.fromCharCode(...new Uint8Array(b));
 
+function assertAesKey(keyBytes) {
+  if (!(keyBytes instanceof Uint8Array) || ![16, 24, 32].includes(keyBytes.length)) {
+    throw new TypeError("AES key must be a 16-, 24-, or 32-byte Uint8Array");
+  }
+}
+
+function assertBlockAligned(data, label) {
+  if (!(data instanceof Uint8Array) || data.length % BLOCK_SIZE !== 0) {
+    throw new TypeError(`${label} must be a block-aligned Uint8Array`);
+  }
+}
+
 export function concat(...arrays) {
   const total = arrays.reduce((n, a) => n + a.length, 0);
   const out = new Uint8Array(total);
@@ -64,6 +76,7 @@ export function unpadPkcs7(data, blockSize = BLOCK_SIZE) {
 
 // ---- one ECB block, via CBC + zero IV ----
 async function ecbEncryptBlockK(cryptoKey, block16) {
+  if (block16.length !== BLOCK_SIZE) throw new TypeError("ECB block must be exactly 16 bytes");
   const ct = await subtle.encrypt({ name: "AES-CBC", iv: ZERO_IV }, cryptoKey, block16);
   return new Uint8Array(ct).slice(0, BLOCK_SIZE); // drop CBC's padding block
 }
@@ -87,6 +100,9 @@ async function ecbDecryptBlock(keyBytes, block16) {
 
 // ---- AES-ECB (intentionally insecure; for demonstration only) ----
 export async function aesEcbEncrypt(keyBytes, plaintext, pad = true) {
+  assertAesKey(keyBytes);
+  if (!(plaintext instanceof Uint8Array)) throw new TypeError("plaintext must be a Uint8Array");
+  if (!pad) assertBlockAligned(plaintext, "unpadded plaintext");
   const data = pad ? padPkcs7(plaintext) : plaintext;
   const k = await subtle.importKey("raw", keyBytes, { name: "AES-CBC" }, false, ["encrypt"]); // import once
   const out = new Uint8Array(data.length);
@@ -97,6 +113,8 @@ export async function aesEcbEncrypt(keyBytes, plaintext, pad = true) {
 }
 
 export async function aesEcbDecrypt(keyBytes, ciphertext, unpad = true) {
+  assertAesKey(keyBytes);
+  assertBlockAligned(ciphertext, "ciphertext");
   const out = new Uint8Array(ciphertext.length);
   for (let i = 0; i < ciphertext.length; i += BLOCK_SIZE) {
     out.set(await ecbDecryptBlock(keyBytes, ciphertext.slice(i, i + BLOCK_SIZE)), i);
@@ -106,7 +124,10 @@ export async function aesEcbDecrypt(keyBytes, ciphertext, unpad = true) {
 
 // ---- real AES-CBC (fresh random IV). WebCrypto applies PKCS#7 itself. ----
 export async function aesCbcEncrypt(keyBytes, plaintext, iv = null) {
+  assertAesKey(keyBytes);
+  if (!(plaintext instanceof Uint8Array)) throw new TypeError("plaintext must be a Uint8Array");
   iv = iv ?? globalThis.crypto.getRandomValues(new Uint8Array(BLOCK_SIZE));
+  if (!(iv instanceof Uint8Array) || iv.length !== BLOCK_SIZE) throw new TypeError("CBC IV must be a 16-byte Uint8Array");
   const k = await subtle.importKey("raw", keyBytes, { name: "AES-CBC" }, false, ["encrypt"]);
   const ct = new Uint8Array(await subtle.encrypt({ name: "AES-CBC", iv }, k, plaintext));
   return { iv, ciphertext: ct };
@@ -118,6 +139,8 @@ export async function aesCbcEncrypt(keyBytes, plaintext, iv = null) {
 export const GCM_NONCE_SIZE = 12;
 
 export async function aesGcmEncrypt(keyBytes, plaintext) {
+  assertAesKey(keyBytes);
+  if (!(plaintext instanceof Uint8Array)) throw new TypeError("plaintext must be a Uint8Array");
   const nonce = globalThis.crypto.getRandomValues(new Uint8Array(GCM_NONCE_SIZE));
   const k = await subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt"]);
   const ct = new Uint8Array(await subtle.encrypt({ name: "AES-GCM", iv: nonce }, k, plaintext));
@@ -125,6 +148,9 @@ export async function aesGcmEncrypt(keyBytes, plaintext) {
 }
 
 export async function aesGcmDecrypt(keyBytes, nonce, ciphertextWithTag) {
+  assertAesKey(keyBytes);
+  if (!(nonce instanceof Uint8Array) || nonce.length !== GCM_NONCE_SIZE) throw new TypeError("GCM nonce must be a 12-byte Uint8Array");
+  if (!(ciphertextWithTag instanceof Uint8Array)) throw new TypeError("ciphertext must be a Uint8Array");
   const k = await subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["decrypt"]);
   return new Uint8Array(await subtle.decrypt({ name: "AES-GCM", iv: nonce }, k, ciphertextWithTag)); // throws on tamper
 }

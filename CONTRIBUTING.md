@@ -13,7 +13,7 @@ Thanks for your interest in ecb-mode.
 1. Fork and branch from `main` (`feature/short-description` or `fix/short-description`).
 2. Keep the change focused; one logical change per pull request.
 3. Add or update tests, and make sure the existing suite and linters pass locally.
-4. Run the project's pre-check-in review before opening the PR.
+4. Review the change for correctness, security, and documentation accuracy.
 5. Open a pull request against `main` and fill in the PR template.
 
 ## Commit and PR conventions
